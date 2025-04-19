@@ -108,17 +108,18 @@ for root,dirs,files in os.walk("./"):
         for row in reader:
             count += 1
             print("Processing file", row[0], count)
-            assert(row[8] == '0.0')
+            assert(row[8] == '0.0') #first time_of_arrival
             Raw = row[:8]
-            search_ip(IP_adresses, [row[1], row[3]])
+            search_ip(IP_adresses, [row[1], row[3]]) # ip adresses from src and dst
             ind = ind_split(row, '')
             assert(ind > 0)
             Time_of_arrival = list(map(float, row[8:ind]))
-            Packet_size = list(map(int, row[ind+1:]))
+            Packet_size = list(map(int, row[ind+1:])) #packet size is the first col?
             assert(len(Time_of_arrival) == len(Packet_size))
             name = label + "_" + Raw[0].replace("_","") + "_(" + str(IP_adresses[row[1]]) + "-" + str(IP_adresses[row[3]]) + ")_(" + str(row[2]) + "-" + str(row[4]) + ")"
             names[label].append(name)
             Values.update({name:{'Time_of_arrival':Time_of_arrival, 'Packet_size':Packet_size}})
+            print({name:{'Time_of_arrival':Time_of_arrival, 'Packet_size':Packet_size}}) # added after
         
         input_file.close()
     assert(check_unicity(names[label]))

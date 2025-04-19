@@ -20,7 +20,7 @@ warnings.simplefilter("ignore", category=UserWarning)
 # The coarse network structure is dicated by the Fashion MNIST dataset.
 User_params = {
 # Check in every run!
-'nb_epochs'               : 30,
+'nb_epochs'               : 15, # 30
 'warmup_epochs'           : 5,
 'snapshot_epochs'         : [15,30],
 
@@ -39,7 +39,7 @@ User_params = {
 'Project'                 : "VPN",                # Image or VPN
 'Problem'                 : "All",         # Encryption or Application or All or All_with_encryption_feature or Application_with_encryption_feature
 'Environment'             : "laptop",             # Server or laptop or colab
-'Dataset'                 : "ISCX",       # MNIST or FashionMNIST or CIFAR10 or ISCX or ISCX_nonVPN or ISCX_VPN or ISCX_Tor
+'Dataset'                 : "ISCX_VPN",       # MNIST or FashionMNIST or CIFAR10 or ISCX or ISCX_nonVPN or ISCX_VPN or ISCX_Tor
 'Model_features'          : "spike spread regularization is in all layers!,"+
                             "Removed spike spread loss in latency mode,",
 'User_comment'            : "",
@@ -171,7 +171,7 @@ User_params['find_params'] = {
 'main_params' : [
 'nb_epochs',
 'warmup_epochs',
-# 'snapshot_epochs',
+'snapshot_epochs',
 
 'lateral_connections',
 'Leaky_Neuron',
@@ -331,7 +331,7 @@ use_cuda = (User_params['Environment'] == "Server") or (User_params['Environment
 # =================================================================================
 
 dtype = torch.float
-np_dtype = np.float
+np_dtype = float # np.float
 # Check whether a GPU is available
 if torch.cuda.is_available():
     device = torch.device("cuda")

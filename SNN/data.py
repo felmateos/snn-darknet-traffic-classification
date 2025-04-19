@@ -138,7 +138,7 @@ def load_dataset(User_params, root_dir, root_dir_data, np_dtype) :
         # print("FileTransfer_VPN : ", np.sum(np.array(train_dataset.labels) == 8))
         # print("Chat_nonVPN : ", np.sum(np.array(train_dataset.labels) == 9))
         # print("Chat_Tor : ", np.sum(np.array(train_dataset.labels) == 10))
-        # print("Chat_VPN : ", np.sum(np.array(train_dataset.labels) == 11))
+        print("Chat_VPN : ", np.sum(np.array(train_dataset.labels) == 11))
         # print("Browsing_nonVPN : ", np.sum(np.array(train_dataset.labels) == 12))
         # print("Browsing_Tor : ", np.sum(np.array(train_dataset.labels) == 13))
 
@@ -229,7 +229,8 @@ class TrafficClassificationDataset(Dataset):
                 elif self.User_params['Dataset']=="ISCX_Tor" and filename.split("_")[1]!="Tor":
                     continue
 
-                command = root.split("/")[-1]
+                root = str.replace(root, '\\', '/')
+                command = root.split("/")[-1] # \\
                 if (self.User_params['Problem']) == "All" or User_params['Problem']=="All_with_encryption_feature":
                     label_name =  filename.split("_")[0] + "_" + filename.split("_")[1]
                 elif (self.User_params['Problem']) == "Encryption":

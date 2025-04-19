@@ -1,3 +1,13 @@
 .idea/
 SNN/.idea/
 SNN/__pycache__/
+venv
+data
+Dataset
+Classes_csv
+Pictures
+docs
+Model
+*.csv
+*.json
+archive/
