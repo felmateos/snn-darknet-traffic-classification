@@ -11,3 +11,5 @@ Model
 *.csv
 *.json
 archive/
+Dataset_raw
+Data

@@ -64,7 +64,7 @@ dataset_name = "Dataset.csv"
 dataset = open(dataset_name, "r")
 dataset_reader = csv.reader(dataset)
 
-categories_file = open("Dataset/Labels.csv","r")
+categories_file = open("./Labels.csv","r")
 categories = csv.reader(categories_file)
 list_categories = []
 for row in categories:

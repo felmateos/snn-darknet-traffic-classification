@@ -292,9 +292,9 @@ class TrafficClassificationDataset(Dataset):
             handmade_features = np.zeros((int(np.shape(item)[0]),3))
             item = np.append(item,handmade_features,axis=1)
             labels_encryption = {'nonVPN': [0, 3, 6, 9, 12], 'Tor': [1, 4, 7, 10, 13], 'VPN': [2, 5, 8, 11]}
-            item[:,300] = self.mean*(label in labels_encryption['nonVPN'])
-            item[:,301] = self.mean*(label in labels_encryption['Tor'])
-            item[:,302] = self.mean*(label in labels_encryption['VPN'])
+            item[:,400] = self.mean*(label in labels_encryption['nonVPN']) #300
+            item[:,401] = self.mean*(label in labels_encryption['Tor']) #301
+            item[:,402] = self.mean*(label in labels_encryption['VPN']) #302
 
 
 
