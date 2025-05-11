@@ -3,6 +3,11 @@ import csv
 from scapy.all import rdpcap, IP, TCP, UDP
 from pathlib import Path
 
+from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn
+from rich.live import Live
+import pandas as pd
+from send2trash import send2trash
+
 
 def get_flow_key(pkt):
     if IP in pkt:
@@ -17,7 +22,7 @@ def get_flow_key(pkt):
             sport = pkt[UDP].sport
             dport = pkt[UDP].dport
         else:
-            return None  # ignore if not TCP nor UDP
+            return None
 
         return (ip_src, sport, ip_dst, dport, proto)
     return None
@@ -26,7 +31,7 @@ def get_flow_key(pkt):
 def process_pcap_to_csv(pcap_path, output_dir):
     packets = rdpcap(pcap_path)
 
-    flows = {}  # groups by 5-tuple
+    flows = {} 
 
     for pkt in packets:
         key = get_flow_key(pkt)
@@ -37,7 +42,13 @@ def process_pcap_to_csv(pcap_path, output_dir):
         flows[key].append(pkt)
 
     os.makedirs(output_dir, exist_ok=True)
+
+    new_flow_id = sum(1 for f in Path(output_dir).iterdir() if f.is_file())
+
+    # i = len list files from folder
     for i, (key, pkts) in enumerate(flows.items()):
+        if i == 0:
+            i = i + new_flow_id
         ip_src, sport, ip_dst, dport, proto = key
         flow_id = f"flow_{i}"
         start_time = pkts[0].time
@@ -51,9 +62,9 @@ def process_pcap_to_csv(pcap_path, output_dir):
             ip_dst,
             dport,
             proto,
-            0,  # id1 (placeholder)
-            0,  # id2 (placeholder)
-            0.0  # initial relative time (always 0)
+            0,  # id1 
+            0,  # id2 
+            0.0  # tempo inicial
         ] + times[1:] + [''] + sizes
 
         csv_name = os.path.join(output_dir, f"{flow_id}.csv")
@@ -61,31 +72,96 @@ def process_pcap_to_csv(pcap_path, output_dir):
             writer = csv.writer(f)
             writer.writerow(row)
 
-        print(f"[✓] Exported {csv_name} with {len(pkts)} packets.")
+
+def get_class(pcap_name: str) -> str:
+    name = pcap_name.lower()
+    
+    crypto_label = next((label for label, keywords in crypto.items() if any(k in name for k in keywords)), None)
+    traffic_label = next((label for label, keywords in traffic.items() if any(k in name for k in keywords)), 'Browsing')
+
+    return f"{traffic_label}_{crypto_label}" if crypto_label else traffic_label
 
 
-pcap_path = Path(r'Dataset_raw\ISCX-VPN-nonVPN-2016\VPN-PCAPS-01')
-save_dir_path = Path("Classes_csv/")
-
-
-pcap_categories = {
-    'vpn_aim_chat1a.pcap': 'Chat_VPN',
-    'vpn_aim_chat1b.pcap': 'Chat_VPN',
-    'vpn_bittorrent.pcap': 'FileTransfer_VPN',
-    'vpn_email2a.pcap': 'Chat_VPN',
-    'vpn_email2b.pcap': 'Chat_VPN',
-    'vpn_facebook_audio2.pcap': 'VOIP_VPN',
-    'vpn_facebook_chat1a.pcap': 'Chat_VPN',
-    'vpn_facebook_chat1b.pcap': 'Chat_VPN',
-    'vpn_ftps_A.pcap': 'FileTransfer_VPN',
-    'vpn_ftps_B.pcap': 'FileTransfer_VPN',
-    'vpn_hangouts_audio1.pcap': 'VOIP_VPN',
-    'vpn_hangouts_audio2.pcap': 'VOIP_VPN',
-    'vpn_hangouts_chat1a.pcap': 'Chat_VPN',
-    'vpn_hangouts_chat1b.pcap': 'Chat_VPN'
+crypto = {
+    'VPN': ['vpn'],
+    'nonVPN': ['nonvpn', 'nontor', 'nontor'],
+    'Tor': ['tor']
 }
 
+traffic = {
+    'Video': ['video', 'youtube', 'vimeo', 'netflix'],
+    'VOIP': ['voip', 'voice', 'audio', 'spotify'],
+    'FileTransfer': ['filetransfer', 'ftps', 'sftp', 'p2p', 'bittorrent', 'scp', 'file', 'transfer'],
+    'Chat': ['chat', 'email', 'mail'],
+    'Browsing': ['browsing']
+}
 
-for pcap_file in pcap_path.glob("*.pcap"):
-    filename = pcap_file.__str__().split('VPN-PCAPS-01\\')[1]
-    process_pcap_to_csv(pcap_file.__str__(), save_dir_path.joinpath(pcap_categories.get(filename).replace('_', '/')))
+root_path = Path('Dataset_raw/')
+save_database = Path('Classes_csv/')
+done_csv_name = Path('./internet_traffic/files_done.csv')
+
+
+# lista de arquivos .pcap ja processados
+if not done_csv_name.exists():
+    files_done = {
+        'file_name': ['dummy']
+    }
+    files_done = pd.DataFrame(files_done)
+    files_done.to_csv(done_csv_name.__str__())
+
+files_done = pd.read_csv(done_csv_name.__str__())
+files_done_list = files_done['file_name'].tolist()
+
+
+# lista de todos arquivos .pcap
+all_files = [name for database in root_path.iterdir() if database.is_dir()
+             for crypto_type in database.iterdir() if crypto_type.is_dir()
+             for name in crypto_type.glob("*.pcap")]
+
+
+# checar tamanho e fazer split caso necessário
+for file in all_files:
+    file_size = file.stat().st_size / (1024 * 1024)
+    if file_size > 500:
+        command = f'editcap -c 100000 {file} {file}'
+        os.system(command)
+        send2trash(file)
+
+# atualiza lista de todos arquivos .pcap
+all_files = [name for database in root_path.iterdir() if database.is_dir()
+             for crypto_type in database.iterdir() if crypto_type.is_dir()
+             for name in crypto_type.glob("*.pcap")]
+
+# lista de arquivos .pcap nao processados
+not_done_list = [str(item) for item in all_files if str(item) not in files_done_list]
+
+
+# barra de progresso
+progress = Progress(
+    TextColumn("[bold blue]Total Progress:"),
+    BarColumn(),
+    "[progress.percentage]{task.percentage:>3.1f}%",
+    "•",
+    TimeRemainingColumn(),
+)
+task = progress.add_task("Processing PCAPs", total=len(all_files))
+
+progress.update(task, completed=(len(all_files) - len(not_done_list)))
+
+
+# processando cada arquivo ainda nao processado
+with Live(progress, refresh_per_second=2):
+
+    for file in not_done_list:
+        crypto_type, pcap_file = (str(file).split('\\')[2], str(file).split('\\')[3])
+        pcap_name = f"{crypto_type}\\{pcap_file}".lower()
+
+        pcap_class = get_class(pcap_name)
+
+        process_pcap_to_csv(str(file), str(save_database.joinpath(pcap_class.replace('_', '/'))))
+
+        files_done.loc[len(files_done)] = [len(files_done), str(file)]
+        files_done.to_csv(done_csv_name.__str__(), index=False)
+        files_done_list = files_done['file_name'].tolist()
+        
+        progress.update(task, advance=1)
