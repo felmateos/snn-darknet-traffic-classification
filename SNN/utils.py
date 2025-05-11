@@ -176,15 +176,10 @@ def plot_mem_rec(mem, idx, plot_name="Membrane potential record"):
 
 
 def plot_model_output(model, User_params, dataloader, device, dtype):
-    if User_params['Project'] == "Image":
-        X_batch, _ = next(iter(dataloader))
-        X_batch = X_batch.to(device, dtype)
-        X_batch = torch.reshape(X_batch, (User_params['batch_size'], User_params['Input_channels'], User_params['image_H'], User_params['image_W']))
-    elif User_params['Project'] == "VPN":
-        X_batch = next(iter(dataloader))[0].to(device, dtype)
+    X_batch = next(iter(dataloader))[0].to(device, dtype)
     model(X_batch)
 
-    nb_plt = 9
+    nb_plt = 16 #9
     if (User_params['batch_size'] >= 64):
         batch_idx = np.random.choice(User_params['batch_size'], nb_plt, replace=False)
     else:
@@ -343,12 +338,7 @@ def plot_loss_acc_epoch_charts(User_params, checkpoint) :
     
     
 def print_model_output(model, User_params, data_loader, device, dtype) :
-    if User_params['Project'] == "Image":
-        X_batch, _ = next(iter(data_loader))
-        X_batch = X_batch.to(device, dtype)
-        X_batch = torch.reshape(X_batch, (User_params['batch_size'], User_params['Input_channels'], User_params['image_H'], User_params['image_W']))
-    elif User_params['Project'] == "VPN":
-        X_batch = next(iter(data_loader))[0].to(device, dtype)
+    X_batch = next(iter(data_loader))[0].to(device, dtype)
     model(X_batch)
 
     for i, l in enumerate(model.layers):

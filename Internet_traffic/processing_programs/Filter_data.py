@@ -50,7 +50,7 @@ def check_unicity(l):
     the_list = np.unique(l, return_counts=True)
     for i in range(len(the_list[1])):
         if the_list[1][i] != 1:
-            print(the_list[0][i])
+            # print(the_list[0][i])
             return False
     return True
 
@@ -99,7 +99,7 @@ for root,dirs,files in os.walk("./"):
         if ".csv" not in file:
             continue 
         
-        print(file)
+        # print(file)
         
         path = "\\".join([root,file])
         input_file = open(path, "r")
@@ -119,10 +119,12 @@ for root,dirs,files in os.walk("./"):
             name = label + "_" + Raw[0].replace("_","") + "_(" + str(IP_adresses[row[1]]) + "-" + str(IP_adresses[row[3]]) + ")_(" + str(row[2]) + "-" + str(row[4]) + ")"
             names[label].append(name)
             Values.update({name:{'Time_of_arrival':Time_of_arrival, 'Packet_size':Packet_size}})
-            print({name:{'Time_of_arrival':Time_of_arrival, 'Packet_size':Packet_size}}) # added after
+            # print({name:{'Time_of_arrival':Time_of_arrival, 'Packet_size':Packet_size}}) # added after
         
         input_file.close()
+    
     assert(check_unicity(names[label]))
+    
         
         
     while len(names[label]) !=0 :

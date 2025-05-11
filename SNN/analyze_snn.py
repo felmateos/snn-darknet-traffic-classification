@@ -1,4 +1,5 @@
 import os
+import re
 import psutil
 import sys
 import numpy as np
@@ -9,25 +10,296 @@ import time
 import warnings
 import termcolor
 import seaborn as sns
-import yaml
-from dacite import from_dict
-from dataclasses import asdict
+import matplotlib.image as mpimg
+from matplotlib.gridspec import GridSpec
 
 import utils
 import models
 import optim
 import data
-from config import UserParams
 
 sys.path.append("./")
 warnings.simplefilter("ignore", category=UserWarning)
+#=======================================================================================
+# The coarse network structure is dicated by the Fashion MNIST dataset.
+User_params = {
+# Check in every run!
+'nb_epochs'               : 2, # 30
+'warmup_epochs'           : 1, #5
+'snapshot_epochs'         : [2,30], #15, 30
 
-with open("params.yaml", "r") as file:
-    params = yaml.safe_load(file)
+'lateral_connections'     : False,                 # True or False
+'Leaky_Neuron'            : True,                # True or False
+'spike_limit'             : False,                 # True or False
+'spike_limit_mode'        : "soft_reset",         # hard_reset or soft_reset
+'Regularization_Term'     : ["squared", "max"],   # The first item is squared or simple loss for normal regularization, the second item is max or L2 for spk_spread_loss
+'High_speed_mode'         : False,
+'Dropout_mode'            : "Nodes",              # Nodes or Channels
+'surrogate_backward_mode' : "sigmoid",            # sigmoid or rectangle or fast_sigmoid_abs or fast_sigmoid_tanh
+'Readout_time_reduction'  : "mean",              # mean or max or mean_max or latency or max_latency
+'warmup_Readout_mode'     : "mean",              # mean or max or mean_max or max_latency / just in the case of Readout_time_reduction=latency
+'optimizer'               : "Adam",                 # RAdam or Adam or AdamW or Adamax
+'scheduler'               : "ReduceLROnPlateau",    # ExponentialLR or ReduceLROnPlateau or CosineAnnealingLR
+'Project'                 : "VPN",                # Image or VPN
+'Problem'                 : "All",         # Encryption or Application or All or All_with_encryption_feature or Application_with_encryption_feature
+'Environment'             : "laptop",             # Server or laptop or colab
+'Dataset'                 : "ISCX_VPN",       # MNIST or FashionMNIST or CIFAR10 or ISCX or ISCX_nonVPN or ISCX_VPN or ISCX_Tor
+'Model_features'          : "spike spread regularization is in all layers!,"+
+                            "Removed spike spread loss in latency mode,",
+'User_comment'            : "",
 
-User_params = from_dict(data_class=UserParams, data=params)
-User_params = asdict(User_params)
+'Model_load'              : True,
+'load_path'               : "/Model/Model_epoch.pth",
+'Analysis_mode'          : True, ## added
+'Train_mode'              : False,
+'Validation_mode'         : False,
+'Test_mode'               : False,
+'Results_save'            : True,
+'Train_Profiler'          : False,
+'Test_Profiler'           : True,
+'Plot_graphs'             : True,
+'plot_show'               : True,
+'Find_model'              : True,
 
+'reg_loss_coef'           : 0,
+'spk_spread_loss_coef'    : 0,
+
+# Check in specific runs!
+'lr'                      : 5e-4,
+
+'batch_size'              : 256,
+'Batch_num_limit'         : 10000,
+
+'nb_inputs'               : 28*28,                # 28*28 for MNIST and FashionMNIST, 32*32 for CIFAR10
+'image_W'                 : 28,                   # 28 for MNIST and FashionMNIST, 32 for CIFAR10
+'image_H'                 : 28,                   # 28 for MNIST and FashionMNIST, 32 for CIFAR10
+'Input_channels'          : 1,                    # 1 for gray scale images, 3 for RGP images
+'nb_dense_layer'          : 100,
+'nb_outputs'              : 3, #11
+
+'w_init_mean'             : 0,
+'w_init_std'              : 0.15,
+
+'surrogate_sigma_sigmoid'       : 10,
+'surrogate_sigma_rec'           : 1,
+'surrogate_a_fast_sigmoid_abs'  : 0.5,
+'surrogate_a_fast_sigmoid_tanh' : 0.5,
+'surrogate_sigma_scale'         : 1,
+
+'nb_steps'                : 400, # 300                   # simulating time steps for 200 time steps
+'weight_decay'            : 1e-5,
+'betas'                   : (0.9, 0.999),
+'time_step'               : 1e-3,                   # 1ms Time step
+'gamma'                   : 0.85,
+'eps'                     : 1e-08,
+'Max_spikes_per_run'      : 1,
+'Scheduler_params'        : {},
+'Train_params'            : {},
+'Dataset_params'          : {},
+'spike_params'            : {},
+'device'                  : {},
+'find_params'             : {},
+
+'Results_path'            : "/Results/Result.json"
+}
+
+User_params['Scheduler_params'] = {
+'mode'                    : "min",
+'factor'                  : 0.1,
+'patience'                : 3,
+'threshold'               : 0.0001,
+'threshold_mode'          : 'rel',
+'cooldown'                : 0,
+'min_lr'                  : 0,
+'eps'                     : User_params['eps'],
+'T_max'                   : User_params['nb_epochs']
+}
+User_params['Train_params'] = {
+# Specifying which group of parameters are trainable
+'w'                       : True,
+'v'                       : True,
+'b'                       : True,
+'beta'                    : True,
+'surrogate_sigma'         : False,
+'BN_scale'                : True,
+'BN_offset'               : True,
+'Readout_b_latency'       : True,
+'Readout_latency_scale'   : True,
+
+'BN_intermediate_mode'              : 'without_offset',          # with_offset or without_offset
+'surrogate_sigma_mode'              : 'one',                     # all or one
+'layer_beta_mode'                   : 'one_per_layer',          # one_per_layer or one_per_neuron
+'train_surrogate_mode'              : 'heaviside',           # heaviside or non_heaviside
+'test_surrogate_mode'               : 'heaviside',               # heaviside or non_heaviside
+'Readout_latency_output_mode'       : 'method_1',         # method_1 or method_2
+'Readout_max_latency_output_mode'   : 'method_1',         # method_1 or method_2
+
+'Readout_latency_scale_val'         : 0.1,
+'Readout_steps_start'               : 0,
+'Readout_steps_end'                 : User_params['nb_steps'],
+
+'beta_init_method'                  : "constant",            # constant or normal or uniform_
+'beta_constant_val'                 : 0.7,
+'beta_normal_mean'                  : 0.7,
+'beta_normal_std'                   : 0.01,
+'beta_uniform_start'                : 0,
+'beta_uniform_end'                  : 1,
+
+'b_init_method'                     : "constant",            # constant or normal or uniform_
+'b_constant_val'                    : 1.0,
+'b_normal_mean'                     : 1.0,
+'b_normal_std'                      : 0.01,
+'b_uniform_start'                   : 0,
+'b_uniform_end'                     : 1
+}
+User_params['Dataset_params'] = {
+# Parameters of VPN dataset
+'nb_bins_time'            : 400, #300
+'nb_bins_size'            : 400, #300
+'gaps'                    : [1,10,20],    #intervals between graduations
+'min_value'               : 40,           # Minimum packet length to start the bins with
+
+'plot_data_mode'          : "none",   # histogram or point_cloud or none
+'plot_data_type'          : "Browsing_Unencrypted"   # Name of class like Chat_Tor
+}
+User_params['spike_params'] = {
+'nb_steps'              : User_params['nb_steps'],
+'time_step'             : User_params['time_step'],
+'spike_limit'           : User_params['spike_limit'],
+'spike_limit_mode'      : User_params['spike_limit_mode'],
+'Max_spikes_per_run'    : User_params['Max_spikes_per_run'],
+'Leaky_Neuron'          : User_params['Leaky_Neuron']
+}
+#=======================================================================================
+#============================= Main params
+User_params['find_params'] = {
+'main_params' : [
+'nb_epochs',
+'warmup_epochs',
+'snapshot_epochs',
+
+'lateral_connections',
+'Leaky_Neuron',
+'spike_limit',
+'spike_limit_mode',
+# 'Regularization_Term',
+'High_speed_mode',
+# 'Dropout_mode',
+'surrogate_backward_mode',
+'Readout_time_reduction',
+'warmup_Readout_mode',
+'optimizer',
+'scheduler',
+'Project',
+# 'Environment',
+'Dataset',
+
+# 'Model_features',
+
+# 'User_comment',
+
+# 'Model_load',
+# 'load_path',
+# 'Train_mode',
+# 'Validation_mode',
+# 'Test_mode',
+# 'Results_save',
+# 'Train_Profiler',
+# 'Test_Profiler',
+# 'Plot_graphs',
+# 'plot_show',
+# 'Find_model',
+
+# 'reg_loss_coef',
+# 'spk_spread_loss_coef',
+
+
+'lr',
+
+'batch_size',
+# 'Batch_num_limit',
+
+# 'nb_inputs',
+# 'image_W',
+# 'image_H',
+# 'Input_channels',
+'nb_dense_layer',
+'nb_outputs',
+
+'w_init_mean',
+'w_init_std',
+
+# 'surrogate_sigma_sigmoid',
+# 'surrogate_sigma_rec',
+# 'surrogate_a_fast_sigmoid_abs',
+# 'surrogate_a_fast_sigmoid_tanh',
+'surrogate_sigma_scale',
+
+'nb_steps',
+'weight_decay',
+'betas',
+'time_step',
+'gamma',
+# 'eps',
+'Max_spikes_per_run',
+'Scheduler_params',
+'Train_params',
+# 'spike_params',
+# 'device',
+# 'find_params',
+
+# 'Results_path'
+],
+#============================= Don't care params
+'dont_care_params' : [
+# 'nb_epochs',
+'snapshot_epochs',
+
+# 'Project',
+'Environment',
+# 'Dataset',
+
+# 'Model_features',
+
+'User_comment',
+
+'Model_load',
+'Analysis_mode'
+'load_path',
+# 'Train_mode',
+'Validation_mode',
+'Test_mode',
+'Results_save',
+'Train_Profiler',
+'Test_Profiler',
+'Plot_graphs',
+'plot_show',
+'Find_model',
+
+# 'batch_size',
+# 'Batch_num_limit',
+
+# 'surrogate_sigma_sigmoid',
+# 'surrogate_sigma_rec',
+# 'surrogate_a_fast_sigmoid_abs',
+# 'surrogate_a_fast_sigmoid_tanh',
+
+# 'spike_params',
+'device',
+'find_params',
+
+'Results_path'
+],
+#============================= Other params
+'main_mismatch_penalty'         : 10,
+'non_main_mismatch_penalty'     : 2,
+'main_no_exist_penalty'         : 20,
+'non_main_no_exist_penalty'     : 1,
+
+'Find_mode'                     : "max_accuracy",     # max_accuracy or similar_model
+'Find_print_details'            : False,
+'Find_path'                     : "/Results/Result.json"
+}
 #=======================================================================================
 if (User_params['Environment']!="Server"):
     import matplotlib.pyplot as plt
@@ -35,8 +307,23 @@ else :
     User_params['Plot_graphs'] = False
     User_params['plot_show'] = False
 
-root_dir = "."
-root_dir_data = root_dir + "/Dataset"
+if (User_params['Environment'] == "colab") :
+    from google.colab import drive
+    # drive.mount('/content/gdrive', force_remount=True)
+
+if (User_params['Environment'] == "colab") :
+    if User_params['Project'] == "Image" :
+        root_dir = "/content/gdrive/My Drive/Colab Notebooks/SNN_CNN_Surrogate_Romain"
+        root_dir_data = root_dir + "/data"
+    elif User_params['Project'] == "VPN" :
+        root_dir = "/content/gdrive/My Drive/Colab Notebooks/PIR-SNN-TOR-VPN"
+        root_dir_data = "/content/PIR-SNN-TOR-VPN/SNN/Dataset"
+else :
+    root_dir = "."
+    if User_params['Project'] == "Image" :
+        root_dir_data = root_dir + "/data"
+    elif User_params['Project'] == "VPN" :
+        root_dir_data = root_dir + "/Dataset"
 
 Save_path_batch = root_dir + "/Model/Model_batch.pth"
 Save_path_epoch = root_dir + "/Model/Model_epoch.pth"
@@ -46,7 +333,7 @@ Test_path = root_dir + "/Model_test/"
 Results_path = root_dir + User_params['Results_path']
 Find_path = root_dir + User_params['find_params']['Find_path']
 
-use_cuda = False #(User_params['Environment'] == "Server") or (User_params['Environment'] == "colab")
+use_cuda = (User_params['Environment'] == "Server") or (User_params['Environment'] == "colab")
 # =================================================================================
 
 dtype = torch.float
@@ -76,7 +363,10 @@ else:
     User_params['device']['device_type'] = str(device)
 print("Using device : ", device)
 #=================================================================================
-[train_dataloader, valid_dataloader, test_dataloader], label_dct = data.load_dataset(User_params, root_dir, root_dir_data, np_dtype)
+if User_params['Project'] == "Image":
+    [train_dataloader, valid_dataloader, test_dataloader], [x_train, x_test, y_train, y_test, mean_lum] = data.load_dataset(User_params, root_dir, root_dir_data, np_dtype)
+elif User_params['Project'] == "VPN":
+    [train_dataloader, valid_dataloader, test_dataloader], label_dct = data.load_dataset(User_params, root_dir, root_dir_data, np_dtype)
 #=================================================================================
 if User_params['surrogate_backward_mode'] == "sigmoid" :
     surrogate_sigma = User_params['surrogate_sigma_sigmoid']
@@ -142,7 +432,8 @@ def train(model, params, optimizer, train_dataloader, valid_dataloader, last_che
         # warmup_itr = 1
 
     hist = {'loss': [], 'valid_accuracy': [], 'epoch_train_time': [], 'validation_time':[]}
-    hist['average_precision'] = []
+    if User_params['Project'] == "VPN":
+        hist['average_precision'] = []
     if last_checkpoint != None:
         checkpoint = last_checkpoint
         last_epochs = checkpoint['epoch']
@@ -150,7 +441,8 @@ def train(model, params, optimizer, train_dataloader, valid_dataloader, last_che
         hist['valid_accuracy'] = checkpoint['Epoch_valid_accuracy_list']
         hist['epoch_train_time'] = checkpoint['epoch_train_time']
         hist['validation_time'] = checkpoint['validation_time']
-        hist['average_precision'] = checkpoint['Epoch_average_precision_list']
+        if User_params['Project'] == "VPN":
+            hist['average_precision'] = checkpoint['Epoch_average_precision_list']
         train_loss = checkpoint['Train_loss_list']
         train_reg_loss = checkpoint['Train_reg_loss_list']
     else :
@@ -194,6 +486,8 @@ def train(model, params, optimizer, train_dataloader, valid_dataloader, last_che
             Batch_Num += 1
 
             x_batch = x_batch.to(device, dtype)
+            if User_params['Project'] == "Image":
+                x_batch = torch.reshape(x_batch, (User_params['batch_size'], User_params['Input_channels'], User_params['image_H'], User_params['image_W']))
             y_batch = y_batch.to(device)
 
             output, loss_seq = model(x_batch)
@@ -280,18 +574,23 @@ def train(model, params, optimizer, train_dataloader, valid_dataloader, last_che
             # valid_dataloader_temp = utils.sparse_data_generator(x_test, y_test, User_params['batch_size'], User_params['nb_steps'], User_params['nb_inputs'], User_params['time_step'],device, dtype)
             # valid_dataloader_temp = utils.data_generator(x_test, y_test, User_params['batch_size'], device, dtype)
             valid_dataloader_temp = valid_dataloader
-            confusion_matrix = compute_confusion_matrix(model, valid_dataloader_temp)
-            valid_accuracy, average_precision = compute_and_print_score_categories(confusion_matrix)
+            if User_params['Project'] == "Image":
+                valid_accuracy = compute_classification_accuracy(model, valid_dataloader_temp)
+            elif User_params['Project'] == "VPN":
+                confusion_matrix = compute_confusion_matrix(model, valid_dataloader_temp)
+                valid_accuracy, average_precision = compute_and_print_score_categories(confusion_matrix)
             end_time = time.time()
             hist['validation_time'].append(end_time-start_time)
             hist['valid_accuracy'].append(valid_accuracy)
             print("Validation accuracy=%.3f" % (valid_accuracy))
-            hist['average_precision'].append(average_precision)
-            print("Average precision = %.1f"%(average_precision)+"%")
+            if User_params['Project'] == "VPN":
+                hist['average_precision'].append(average_precision)
+                print("Average precision = %.1f"%(average_precision)+"%")
 
         checkpoint['Epoch_loss_list'] = hist['loss']
         checkpoint['Epoch_valid_accuracy_list'] = hist['valid_accuracy']
-        checkpoint['Epoch_average_precision_list'] = hist['average_precision']
+        if User_params['Project'] == "VPN":
+            checkpoint['Epoch_average_precision_list'] = hist['average_precision']
         checkpoint['epoch_train_time'] = hist['epoch_train_time']
         checkpoint['validation_time'] = hist['validation_time']
         checkpoint['scheduler_state_dict'] = scheduler.state_dict()
@@ -524,6 +823,92 @@ def compute_and_print_score_categories(confusion_matrix):
     return(np.sum(Total_Acc)*100, np.sum(Avg_Pr)*100)
 
 
+def store_mem_spikes_rec(model, dataloader, batch_idx = None):
+    filenames = []
+
+    # pegar filenames de interesse
+    if batch_idx:
+        for idx in batch_idx:
+            filenames.append(dataloader.dataset.filenames[idx])
+    else:
+        filenames = dataloader.dataset.filenames
+
+    # armazenar os potenciais de membrana e spikes em imagens
+    
+    if User_params['Project'] == "VPN":
+        X_batch = next(iter(dataloader))[0].to(device, dtype)
+
+    model(X_batch)
+
+    # Plotting spike trains or membrane potential
+    for i, l in enumerate(model.layers):
+
+        if isinstance(l, models.SpikingDenseLayer):
+            print("Layer {}: average number of spikes={:.4f}".format(i, User_params['nb_steps'] * l.spk_rec_hist.mean()))
+            spk_rec = l.spk_rec_hist
+            if (User_params['Plot_graphs']):
+                utils.plot_spk_rec(spk_rec, idx=batch_idx, plot_name="Spikes record of SpikingDenseLayer")
+        elif models.isReadoutlayer(l):
+            mem_rec = l.mem_rec_hist
+            mthr = l.mthr_hist
+            if (User_params['Plot_graphs']):
+                start_step = User_params['Train_params']['Readout_steps_start']
+                end_step = User_params['Train_params']['Readout_steps_end']
+                utils.plot_mem_rec(mem_rec[:,start_step:end_step,:], batch_idx, plot_name="Membrane potential record of ReadoutLayer")
+
+        filenames_pics = [f.split('./Dataset/Testing\\')[1] for f in filenames]
+        filenames_pics = [f.split('.csv')[0] for f in filenames_pics]
+        filenames_pics = [f+'_(1).png' for f in filenames_pics]
+
+        prefixes = [f.split('_')[0] for f in filenames_pics]
+        prefixes = [p+'/' for p in prefixes]
+
+        pi = './Pictures/'
+
+        filenames_pics = [p.join([pi, f]) for (p, f) in zip(prefixes, filenames_pics)]
+
+        # print(filenames_pics)
+
+        # for f in filenames_pics:
+
+        #     img = mpimg.imread(f)
+
+        #     # Plot the image
+        #     plt.imshow(img)
+        #     plt.axis('off')  # optional: turns off the axis
+
+        nb_plt = len(filenames_pics)
+        d = int(np.sqrt(nb_plt))+1
+        dim = (d, d)
+        
+        gs=GridSpec(*dim)
+        plt.figure(figsize=(30,20))
+
+        for i,f in enumerate(filenames_pics):
+            if i==0:
+                a0=ax=plt.subplot(gs[i])
+                plt.title('plot_name')
+            else: ax=plt.subplot(gs[i],sharey=a0)
+            img = mpimg.imread(f)
+
+            # Plot the image
+            plt.imshow(img)
+            plt.axis('off')  # optional: turns off the axis
+            ax.plot(f)
+
+    plt.show()
+
+        
+
+
+
+
+
+
+
+    
+
+
 def compute_matrix_total_metrics(confusion_matrix):
     tot_data = np.sum(confusion_matrix)
     Avg_Pr = []
@@ -552,11 +937,10 @@ def compute_metrics(TP,TN,FP,FN):
         Ac, Pr, Re = (TP+TN)/(TP+FP+FN+TN), TP/(TP+FP), TP/(TP+FN)
     return Ac, Pr, Re
 # =================================================================================
-
 checkpoint = None
 if User_params['Model_load'] :
     if (os.path.exists(Load_path)):
-        checkpoint = torch.load(Load_path, map_location=device)
+        checkpoint = torch.load(Load_path, map_location=device, weights_only=False)
         snn.load_state_dict(checkpoint['model_state_dict'])
         # params = checkpoint['model_params']
         print("Saved model loaded")
@@ -654,38 +1038,145 @@ if User_params['Test_mode'] :
 
     if User_params['Test_Profiler'] :
         with profile(use_cuda=use_cuda) as prof:
-            test_confusion_matrix = compute_confusion_matrix(snn, test_dataloader)
-            test_accuracy, average_precision = compute_and_print_score_categories(test_confusion_matrix)
+            if User_params['Project'] == "Image":
+                test_accuracy = compute_classification_accuracy(snn, test_dataloader)
+            elif User_params['Project'] == "VPN":
+                test_confusion_matrix = compute_confusion_matrix(snn, test_dataloader)
+                test_accuracy, average_precision = compute_and_print_score_categories(test_confusion_matrix)
+                
 
             print("Test accuracy=%.3f"%(test_accuracy))
-            print("Average precision = %.1f"%(average_precision)+"%")
+            if User_params['Project'] == "VPN":
+                print("Average precision = %.1f"%(average_precision)+"%")
         print("Output of key_averages :")
         print(prof.key_averages().table(sort_by="self_cpu_time_total"))
         print("Profile :")
         print(prof)
     else :
-        test_confusion_matrix = compute_confusion_matrix(snn, test_dataloader)
-        test_accuracy, average_precision = compute_and_print_score_categories(test_confusion_matrix)
+        if User_params['Project'] == "Image":
+            test_accuracy = compute_classification_accuracy(snn, test_dataloader)
+        elif User_params['Project'] == "VPN":
+            test_confusion_matrix = compute_confusion_matrix(snn, test_dataloader)
+            test_accuracy, average_precision = compute_and_print_score_categories(test_confusion_matrix)
 
         print("Test accuracy=%.3f"%(test_accuracy))
-        print("Average precision = %.1f"%(average_precision)+"%")
+        if User_params['Project'] == "VPN":
+            print("Average precision = %.1f"%(average_precision)+"%")
 
     if checkpoint!=None and User_params['Results_save'] and utils.json_exist(checkpoint['model_id'], Results_path):
         # checkpoint['train_accuracy'] = train_accuracy
         checkpoint['test_accuracy'] = test_accuracy
         utils.save_results(snn, checkpoint, User_params, Results_path)
+
 # =================================================================================
+
+if User_params['Analysis_mode']:
+
+    if (User_params['Readout_time_reduction'] == 'latency') :
+        snn.layers[-1].latency_mode_init(device=device, dtype=dtype)
+        snn.layers[-1].print_params()
+
+    # train_accuracy = compute_classification_accuracy(snn, train_dataloader)
+    # print("Train accuracy=%.3f"%(train_accuracy))
+
+    for i, l in enumerate(snn.layers):
+        print("Beta for Layer {}: {}".format(i, l.beta))
+
+    batch_idx = [12, 55, 61, 64, 72, 127, 131, 133]
+
+    print('CHOSEN SAMPLES: ')
+
+    for idx in batch_idx:
+        print(test_dataloader.dataset.filenames[idx])
+
+    if User_params['Test_Profiler'] :
+        with profile(use_cuda=use_cuda) as prof:
+            if User_params['Project'] == "VPN":
+                store_mem_spikes_rec(snn, test_dataloader, batch_idx)
+                test_confusion_matrix = compute_confusion_matrix(snn, test_dataloader)
+                test_accuracy, average_precision = compute_and_print_score_categories(test_confusion_matrix)
+                
+
+            print("Test accuracy=%.3f"%(test_accuracy))
+            if User_params['Project'] == "VPN":
+                print("Average precision = %.1f"%(average_precision)+"%")
+        print("Output of key_averages :")
+        print(prof.key_averages().table(sort_by="self_cpu_time_total"))
+        print("Profile :")
+        print(prof)
+    else :
+        if User_params['Project'] == "VPN":
+            test_confusion_matrix = compute_confusion_matrix(snn, test_dataloader)
+            test_accuracy, average_precision = compute_and_print_score_categories(test_confusion_matrix)
+
+        print("Test accuracy=%.3f"%(test_accuracy))
+        if User_params['Project'] == "VPN":
+            print("Average precision = %.1f"%(average_precision)+"%")
+
+    if checkpoint!=None and User_params['Results_save'] and utils.json_exist(checkpoint['model_id'], Results_path):
+        # checkpoint['train_accuracy'] = train_accuracy
+        checkpoint['test_accuracy'] = test_accuracy
+        utils.save_results(snn, checkpoint, User_params, Results_path)
+
+# =================================================================================
+
+if User_params['Analysis_mode']:
+    print('sabugo')
+    X_batch = next(iter(test_dataloader))[0].to(device, dtype)
+    y_batch = next(iter(test_dataloader))[1].to(device, dtype)
+    # print(X_batch)
+
+    # RUN IT INTO THE SNN (PREDICT)
+    # STORE HISTOGRAM (400MS) SPIKES AND MEMBRANE POTENTIAL
+    snn(X_batch)
+
+    nb_plt = 1 #9
+
+    if (User_params['batch_size'] >= 64):
+        batch_idx = np.random.choice(User_params['batch_size'], nb_plt, replace=False)
+    else:
+        batch_idx = np.random.choice(User_params['batch_size'], nb_plt, replace=True)
+
+    # GET 1 SAMPLE OF EACH CLASS
+    batch_idx = [12, 55, 61, 64, 72, 127, 131, 133] # maneiro
+
+    # tem parada errada aqui irmão, como pode filetransfer e chat terem a mesma distribuição de spikes, mem_rec e packets?
+
+    # se o batch segue a ordem da pasta Testing, basta pegar o i-esimo arquivo
+    # senao, a gente precisa de um jeito de armazenar uma memoria do input
+    # ou usar engenharia reversa pra extrair qual foi o input usado ##
+
+
+    # PRINT IN ONE PLOT WITH N*M SUBPLOTS (N ROWS FOR CLASSES) (M COLS FOR HISTO, SPIKES AND MEMBRANE POTENTIAL)
+    # Plotting spike trains or membrane potential
+    for i, l in enumerate(snn.layers):
+        if isinstance(l, models.SpikingDenseLayer):
+            print("Layer {}: average number of spikes={:.4f}".format(i, User_params['nb_steps'] * l.spk_rec_hist.mean()))
+            spk_rec = l.spk_rec_hist
+            if (User_params['Plot_graphs']):
+                utils.plot_spk_rec(spk_rec, idx=batch_idx, plot_name=f"Spikes record of SpikingDenseLayer of {batch_idx}")
+        elif models.isReadoutlayer(l):
+            mem_rec = l.mem_rec_hist
+            mthr = l.mthr_hist
+            if (User_params['Plot_graphs']):
+                start_step = User_params['Train_params']['Readout_steps_start']
+                end_step = User_params['Train_params']['Readout_steps_end']
+                utils.plot_mem_rec(mem_rec[:,start_step:end_step,:], batch_idx, plot_name=f"Membrane potential record of ReadoutLayer of {batch_idx}")
+
+    plt.show()
+# =================================================================================
+
 
 if (User_params['Plot_graphs']):
     utils.plot_model_output(snn, User_params, test_dataloader, device, dtype)
 
-    plt.figure(figsize=(6, 5))
-    sns.heatmap(test_confusion_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=label_dct.keys(), yticklabels=label_dct.keys())
+    # plt.figure(figsize=(6, 5))
+    # sns.heatmap(test_confusion_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=label_dct.keys(), yticklabels=label_dct.keys())
 
-    # Adding labels
-    plt.xlabel('Predicted')
-    plt.ylabel('True')
-    plt.title('Confusion Matrix Heatmap')
+    # # Adding labels
+    # plt.xlabel('Predicted')
+    # plt.ylabel('True')
+    # plt.title('Confusion Matrix Heatmap')
 
 # =================================================================================
 if User_params['Plot_graphs'] :
@@ -700,4 +1191,9 @@ if User_params['Find_model'] :
 # =================================================================================
 
 if (User_params['plot_show'] == True):
-    plt.show()
+    print('plot')
+    # plt.show()
+
+# =================================================================================
+# =================================================================================
+# =================================================================================

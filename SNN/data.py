@@ -98,7 +98,8 @@ def load_dataset(User_params, root_dir, root_dir_data, np_dtype) :
 
         test_hist = os.listdir(test_data_root)
         test_hist = [x for x in test_hist if os.path.isfile(os.path.join(test_data_root,x))]
-        print("{} testing histograms".format(len(test_hist)))        
+        print("{} testing histograms".format(len(test_hist)))
+             
         ##################################################
         if User_params['Problem'] == "All" or User_params['Problem']=="All_with_encryption_feature" :
             categories_file = open(root_dir + "/Labels.csv","r")
@@ -171,6 +172,10 @@ def load_dataset(User_params, root_dir, root_dir_data, np_dtype) :
         print("Number of test_dataset samples : ", len(test_dataset.labels))
         
         User_params['number_of_batches'] = int(len(training_hist) / User_params['batch_size'])
+
+        # print(f'our samples: {test_dataset.filenames[12]}, {test_dataset.filenames[55]}, {test_dataset.filenames[61]}, {test_dataset.filenames[64]},  {test_dataset.filenames[72]}, {test_dataset.filenames[127]}, {test_dataset.filenames[131]}, {test_dataset.filenames[133]}')
+        # print(f'nu we {test_dataloader.dataset.filenames[12]}')
+        # print(test_dataset.filenames)
 
         # valid_batch_num = int(len(valid_hist) / User_params['batch_size'])
         # ratio = valid_batch_num / (valid_batch_num + 1)
@@ -317,9 +322,10 @@ class TrafficClassificationDataset(Dataset):
 
 
         if not self.User_params['Dataset_params']['plot_data_mode'] == "none":
-            label_dct = {0:'Video_Unencrypted', 1:'Video_Tor', 2:'Video_VPN', 3:'VOIP_Unencrypted', 4:'VOIP_Tor', 5:'VOIP_VPN',
-             6:'FileTransfer_Unencrypted', 7:'FileTransfer_Tor', 8:'FileTransfer_VPN', 9:'Chat_Unencrypted', 10:'Chat_Tor',
-             11:'Chat_VPN', 12:'Browsing_Unencrypted', 13:'Browsing_Tor'}
+            # label_dct = {0:'Video_Unencrypted', 1:'Video_Tor', 2:'Video_VPN', 3:'VOIP_Unencrypted', 4:'VOIP_Tor', 5:'VOIP_VPN',
+            #  6:'FileTransfer_Unencrypted', 7:'FileTransfer_Tor', 8:'FileTransfer_VPN', 9:'Chat_Unencrypted', 10:'Chat_Tor',
+            #  11:'Chat_VPN', 12:'Browsing_Unencrypted', 13:'Browsing_Tor'}
+            label_dct = {0:'VOIP_VPN', 1:'FileTransfer_VPN', 2:'Chat_VPN'}
 
             if label_dct[label] == self.User_params['Dataset_params']['plot_data_type']:
 

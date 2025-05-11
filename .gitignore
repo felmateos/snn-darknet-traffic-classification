@@ -6,7 +6,7 @@ data
 Dataset
 Classes_csv
 Pictures
-docs
+articles
 Model
 *.csv
 *.json

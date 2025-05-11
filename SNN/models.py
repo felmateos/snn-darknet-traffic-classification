@@ -26,6 +26,8 @@ class SNN(torch.nn.Module):
         self.layers = torch.nn.ModuleList(layers)
 
     def forward(self, x):
+        # print('INPUT')
+        # print(x) #added
         loss_seq = []
 
         with torch.autograd.profiler.record_function("label-forward"):
@@ -1707,6 +1709,11 @@ class ReadoutLayer(torch.nn.Module):
         self.mthr_hist = mthr.detach().cpu().numpy()
 
         loss = None
+        # print('OUTPUT')
+        #1=AZUL, 2=AMARELO, 3=VERDE
+        # print(output)
+        
+        np.savetxt('output.txt', output.detach().numpy(), fmt='%.6f')
         return output, loss
 
     def reset_parameters(self):
