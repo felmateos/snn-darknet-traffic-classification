@@ -21,9 +21,9 @@ Dataset: Gotham
 Model_features: "spike spread regularization is in all layers!,Removed spike spread loss in latency mode,"
 User_comment: ""
 
-Model_load: false
+Model_load: true
 load_path: "/Model/Model_epoch.pth"
-Train_mode: true
+Train_mode: false
 Validation_mode: true
 Test_mode: true
 Results_save: true

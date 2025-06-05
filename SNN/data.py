@@ -10,72 +10,7 @@ import matplotlib
 
 
 def load_dataset(User_params, root_dir, root_dir_data, np_dtype) :
-    if User_params['Project'] == "Image":
-        # Here we load the Dataset
-        if(User_params['Dataset'] == "MNIST") :
-            transform = torchvision.transforms.Compose([
-                # you can add other transformations in this list
-                torchvision.transforms.ToTensor(),
-                # torchvision.transforms.Normalize(mean=[0.5], std=[0.5])
-            ])
-            root = os.path.expanduser(root_dir_data + "/datasets/torch/mnist")
-            train_dataset = torchvision.datasets.MNIST(root, train=True, transform=transform, target_transform=None, download=True)
-            test_dataset = torchvision.datasets.MNIST(root, train=False, transform=transform, target_transform=None, download=True)
-        elif(User_params['Dataset'] == "FashionMNIST") :
-            transform = torchvision.transforms.Compose([
-                # you can add other transformations in this list
-                torchvision.transforms.ToTensor(),
-                # torchvision.transforms.Normalize(mean=[0.5], std=[0.5])
-            ])
-            root = os.path.expanduser(root_dir_data + "/datasets/torch/fashion-mnist")
-            train_dataset = torchvision.datasets.FashionMNIST(root, train=True, transform=transform, target_transform=None, download=True)
-            test_dataset = torchvision.datasets.FashionMNIST(root, train=False, transform=transform, target_transform=None, download=True)
-        elif(User_params['Dataset'] == "CIFAR10") :
-            transform = torchvision.transforms.Compose([
-                # you can add other transformations in this list
-                torchvision.transforms.ToTensor(),
-                # torchvision.transforms.Normalize([0.5,0.5,0.5], [0.5,0.5,0.5])
-            ])
-            root = os.path.expanduser(root_dir_data + "/datasets/torch/cifar-10")
-            train_dataset = torchvision.datasets.CIFAR10(root, train=True, transform=transform, target_transform=None, download=True)
-            test_dataset = torchvision.datasets.CIFAR10(root, train=False, transform=transform, target_transform=None, download=True)
-        #=======================================================================================
-        # Standardize data
-        if (User_params['Dataset']=="MNIST" or User_params['Dataset']=="FashionMNIST"):
-            # x_train = torch.tensor(train_dataset.train_data, device=device, dtype=dtype)
-            x_train = np.array(train_dataset.train_data, dtype=np_dtype)/255
-            # x_test = torch.tensor(test_dataset.test_data, device=device, dtype=dtype)
-            x_test = np.array(test_dataset.test_data, dtype=np_dtype)/255
-
-            # y_train = torch.tensor(train_dataset.train_labels, device=device, dtype=dtype)
-            y_train = np.array(train_dataset.train_labels, dtype=np.int)
-            # y_test  = torch.tensor(test_dataset.test_labels, device=device, dtype=dtype)
-            y_test  = np.array(test_dataset.test_labels, dtype=np.int)
-
-            mean_lum = np.mean(x_train)
-
-        # =================================================================================
-        if (User_params['Dataset']=="MNIST" or User_params['Dataset']=="FashionMNIST"):
-            Dataset_train_size = 60000
-            Dataset_test_size = 10000
-            User_params['number_of_batches'] = int(Dataset_train_size / User_params['batch_size'])
-            # train_dataloader = data_generator(x_train, y_train, User_params['batch_size'], device, dtype)
-            # valid_dataloader = data_generator(x_test, y_test, User_params['batch_size'], device, dtype)
-            # test_dataloader = data_generator(x_test, y_test, User_params['batch_size'], device, dtype)
-            train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=User_params['batch_size'], shuffle=True, num_workers=0, drop_last=True)
-            valid_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=User_params['batch_size'], shuffle=True, num_workers=0, drop_last=True)
-            test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=User_params['batch_size'], shuffle=True, num_workers=0, drop_last=True)
-        elif (User_params['Dataset']=="CIFAR10"):
-            Dataset_train_size = 50000
-            Dataset_test_size = 10000
-            User_params['number_of_batches'] = int(Dataset_train_size / User_params['batch_size'])
-            train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=User_params['batch_size'],shuffle=True, num_workers=0, drop_last=True)
-            valid_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=User_params['batch_size'],shuffle=True, num_workers=0, drop_last=True)
-            test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=User_params['batch_size'],shuffle=True, num_workers=0, drop_last=True)
-
-        return [train_dataloader, valid_dataloader, test_dataloader], [x_train, x_test, y_train, y_test, mean_lum]
-
-    elif User_params['Project'] == "VPN":
+    if User_params['Project'] == "VPN":
         bins_time = User_params['Dataset_params']['nb_bins_time']
         nb_bins_size = User_params['Dataset_params']['nb_bins_size']
         gaps = User_params['Dataset_params']['gaps'] #intervals between graduations
@@ -128,20 +63,20 @@ def load_dataset(User_params, root_dir, root_dir_data, np_dtype) :
             train_dataloader_tmp = DataLoader(train_dataset, batch_size=User_params['batch_size'], shuffle=False, num_workers=0, collate_fn=utils.collate_fn)
             train_dataloader_create=False
         print("Number of train_dataset samples : ", len(train_dataset.labels))
-        # print("Video_nonVPN : ", np.sum(np.array(train_dataset.labels) == 0))
-        # print("Video_Tor : ", np.sum(np.array(train_dataset.labels) == 1))
-        # print("Video_VPN : ", np.sum(np.array(train_dataset.labels) == 2))
-        # print("VOIP_nonVPN : ", np.sum(np.array(train_dataset.labels) == 3))
-        # print("VOIP_Tor : ", np.sum(np.array(train_dataset.labels) == 4))
-        # print("VOIP_VPN : ", np.sum(np.array(train_dataset.labels) == 5))
-        # print("FileTransfer_nonVPN : ", np.sum(np.array(train_dataset.labels) == 6))
-        # print("FileTransfer_Tor : ", np.sum(np.array(train_dataset.labels) == 7))
-        # print("FileTransfer_VPN : ", np.sum(np.array(train_dataset.labels) == 8))
-        # print("Chat_nonVPN : ", np.sum(np.array(train_dataset.labels) == 9))
-        # print("Chat_Tor : ", np.sum(np.array(train_dataset.labels) == 10))
+        print("Video_nonVPN : ", np.sum(np.array(train_dataset.labels) == 0))
+        print("Video_Tor : ", np.sum(np.array(train_dataset.labels) == 1))
+        print("Video_VPN : ", np.sum(np.array(train_dataset.labels) == 2))
+        print("VOIP_nonVPN : ", np.sum(np.array(train_dataset.labels) == 3))
+        print("VOIP_Tor : ", np.sum(np.array(train_dataset.labels) == 4))
+        print("VOIP_VPN : ", np.sum(np.array(train_dataset.labels) == 5))
+        print("FileTransfer_nonVPN : ", np.sum(np.array(train_dataset.labels) == 6))
+        print("FileTransfer_Tor : ", np.sum(np.array(train_dataset.labels) == 7))
+        print("FileTransfer_VPN : ", np.sum(np.array(train_dataset.labels) == 8))
+        print("Chat_nonVPN : ", np.sum(np.array(train_dataset.labels) == 9))
+        print("Chat_Tor : ", np.sum(np.array(train_dataset.labels) == 10))
         print("Chat_VPN : ", np.sum(np.array(train_dataset.labels) == 11))
-        # print("Browsing_nonVPN : ", np.sum(np.array(train_dataset.labels) == 12))
-        # print("Browsing_Tor : ", np.sum(np.array(train_dataset.labels) == 13))
+        print("Browsing_nonVPN : ", np.sum(np.array(train_dataset.labels) == 12))
+        print("Browsing_Tor : ", np.sum(np.array(train_dataset.labels) == 13))
 
         if User_params['Problem']=="All_with_encryption_feature" or User_params['Problem']=="Application_with_encryption_feature":
             train_batch_num = int(len(training_hist) / User_params['batch_size'])
@@ -173,31 +108,88 @@ def load_dataset(User_params, root_dir, root_dir_data, np_dtype) :
         
         User_params['number_of_batches'] = int(len(training_hist) / User_params['batch_size'])
 
-        # print(f'our samples: {test_dataset.filenames[12]}, {test_dataset.filenames[55]}, {test_dataset.filenames[61]}, {test_dataset.filenames[64]},  {test_dataset.filenames[72]}, {test_dataset.filenames[127]}, {test_dataset.filenames[131]}, {test_dataset.filenames[133]}')
-        # print(f'nu we {test_dataloader.dataset.filenames[12]}')
-        # print(test_dataset.filenames)
+    elif User_params['Project'] == "Darknet":
+        bins_time = User_params['Dataset_params']['nb_bins_time']
+        nb_bins_size = User_params['Dataset_params']['nb_bins_size']
+        gaps = User_params['Dataset_params']['gaps'] #intervals between graduations
+        min_value = User_params['Dataset_params']['min_value']
+        bins_size, shift = utils.calibration_bins_size(nb_bins_size, gaps, min_value)
 
-        # valid_batch_num = int(len(valid_hist) / User_params['batch_size'])
-        # ratio = valid_batch_num / (valid_batch_num + 1)
-        # index = 0
-        # for x_batch, y_batch in valid_dataloader:
-        #     if index == 0:
-        #         mean = torch.mean(x_batch).item()
-        #     else:
-        #         mean = ratio * mean + (1 - ratio) * torch.mean(x_batch).item()
-        #     index += 1
-        # print("Mean value of valid_dataset :", mean)
+        bins = [bins_time, bins_size]
+        ##################################################
+        train_data_root = root_dir_data + "/Training/"
+        valid_data_root = root_dir_data + "/Validation/"
+        test_data_root = root_dir_data + "/Testing/"
 
-        # test_batch_num = int(len(test_hist) / User_params['batch_size'])
-        # ratio = test_batch_num / (test_batch_num + 1)
-        # index = 0
-        # for x_batch, y_batch in test_dataloader:
-        #     if index == 0:
-        #         mean = torch.mean(x_batch).item()
-        #     else:
-        #         mean = ratio * mean + (1 - ratio) * torch.mean(x_batch).item()
-        #     index += 1
-        # print("Mean value of test_dataset :", mean)
+        training_hist = os.listdir(train_data_root)
+        training_hist = [x for x in training_hist if os.path.isfile(os.path.join(train_data_root,x))]
+        print("{} training histograms".format(len(training_hist)))
+
+        valid_hist = os.listdir(valid_data_root)
+        valid_hist = [x for x in valid_hist if os.path.isfile(os.path.join(valid_data_root,x))]
+        print("{} validation histograms".format(len(valid_hist)))
+
+        test_hist = os.listdir(test_data_root)
+        test_hist = [x for x in test_hist if os.path.isfile(os.path.join(test_data_root,x))]
+        print("{} testing histograms".format(len(test_hist)))
+             
+        ##################################################
+        if User_params['Problem'] == "All" or User_params['Problem']=="All_with_encryption_feature" :
+            categories_file = open(root_dir + "/Labels.csv","r")
+            categories = csv.reader(categories_file)
+            list_categories = []
+            for row in categories:
+                list_categories += row
+            categories_file.close()
+        
+        label_dct = {k:i for i,k in enumerate(list_categories)}
+        print("label_dct:")
+        print(label_dct)
+        #=================================================================================
+        try:
+            train_dataset = TrafficClassificationDataset(User_params=User_params, data_root=root_dir_data, label_dct=label_dct, bins=bins, shift=shift, mode="train")
+            train_sampler = torch.utils.data.WeightedRandomSampler(train_dataset.weights,len(train_dataset.weights))
+            train_dataloader_tmp = DataLoader(train_dataset, batch_size=User_params['batch_size'], shuffle=False, num_workers=0, sampler=train_sampler, collate_fn=utils.collate_fn)
+            train_dataloader_create=True
+        except:
+            print("Error while trying to create the main train_dataset/train_dataloader, creating another one similar to validation ...")
+            train_dataset = TrafficClassificationDataset(User_params=User_params, data_root=root_dir_data, label_dct=label_dct, bins=bins, shift=shift, mode="valid")
+            train_dataloader_tmp = DataLoader(train_dataset, batch_size=User_params['batch_size'], shuffle=True, num_workers=0, collate_fn=utils.collate_fn)
+            train_dataloader_create=False
+        print("Number of train_dataset samples : ", len(train_dataset.labels))
+
+        for i,k in enumerate(label_dct.keys()):
+            print(f"{k}: ", np.sum(np.array(train_dataset.labels) == i))
+
+        if User_params['Problem']=="All_with_encryption_feature" or User_params['Problem']=="Application_with_encryption_feature":
+            train_batch_num = int(len(training_hist) / User_params['batch_size'])
+            ratio = train_batch_num / (train_batch_num + 1)
+            index = 0
+            for x_batch, y_batch in train_dataloader_tmp:
+                if index == 0:
+                    mean = torch.mean(x_batch).item()
+                else:
+                    mean = ratio * mean + (1 - ratio) * torch.mean(x_batch).item()
+                index += 1
+            print("Mean value of train_dataset :", mean)
+            train_dataset.mean = mean
+
+        if train_dataloader_create :
+            train_dataloader = DataLoader(train_dataset, batch_size=User_params['batch_size'], shuffle=False, num_workers=0, sampler=train_sampler, collate_fn=utils.collate_fn)
+        else:
+            train_dataloader = DataLoader(train_dataset, batch_size=User_params['batch_size'], shuffle=True, num_workers=0, collate_fn=utils.collate_fn)
+
+        valid_dataset = TrafficClassificationDataset(User_params=User_params, data_root=root_dir_data, label_dct=label_dct, bins=bins, shift=shift, mode="valid")
+        valid_dataset.mean = train_dataset.mean
+        valid_dataloader = DataLoader(valid_dataset, batch_size=User_params['batch_size'], shuffle=True, num_workers=0, collate_fn=utils.collate_fn)
+        print("Number of valid_dataset samples : ", len(valid_dataset.labels))
+
+        test_dataset = TrafficClassificationDataset(User_params=User_params, data_root=root_dir_data, label_dct=label_dct, bins=bins, shift=shift, mode="test")
+        test_dataset.mean = train_dataset.mean
+        test_dataloader = DataLoader(test_dataset, batch_size=User_params['batch_size'], shuffle=True, num_workers=0, collate_fn=utils.collate_fn)
+        print("Number of test_dataset samples : ", len(test_dataset.labels))
+        
+        User_params['number_of_batches'] = int(len(training_hist) / User_params['batch_size'])
 
         return [train_dataloader, valid_dataloader, test_dataloader], label_dct
 
@@ -227,12 +219,12 @@ class TrafficClassificationDataset(Dataset):
             for filename in files:
                 if not filename.endswith(".csv"):
                     continue
-                elif self.User_params['Dataset']=="ISCX_nonVPN" and filename.split("_")[1]!="nonVPN":
-                    continue
-                elif self.User_params['Dataset']=="ISCX_VPN" and filename.split("_")[1]!="VPN":
-                    continue
-                elif self.User_params['Dataset']=="ISCX_Tor" and filename.split("_")[1]!="Tor":
-                    continue
+                # elif self.User_params['Dataset']=="ISCX_nonVPN" and filename.split("_")[1]!="nonVPN":
+                #     continue
+                # elif self.User_params['Dataset']=="ISCX_VPN" and filename.split("_")[1]!="VPN":
+                #     continue
+                # elif self.User_params['Dataset']=="ISCX_Tor" and filename.split("_")[1]!="Tor":
+                #     continue
 
                 root = str.replace(root, '\\', '/')
                 command = root.split("/")[-1] # \\
@@ -297,9 +289,9 @@ class TrafficClassificationDataset(Dataset):
             handmade_features = np.zeros((int(np.shape(item)[0]),3))
             item = np.append(item,handmade_features,axis=1)
             labels_encryption = {'nonVPN': [0, 3, 6, 9, 12], 'Tor': [1, 4, 7, 10, 13], 'VPN': [2, 5, 8, 11]}
-            item[:,400] = self.mean*(label in labels_encryption['nonVPN']) #300
-            item[:,401] = self.mean*(label in labels_encryption['Tor']) #301
-            item[:,402] = self.mean*(label in labels_encryption['VPN']) #302
+            item[:,300] = self.mean*(label in labels_encryption['nonVPN']) #300
+            item[:,301] = self.mean*(label in labels_encryption['Tor']) #301
+            item[:,302] = self.mean*(label in labels_encryption['VPN']) #302
 
 
 
@@ -322,10 +314,9 @@ class TrafficClassificationDataset(Dataset):
 
 
         if not self.User_params['Dataset_params']['plot_data_mode'] == "none":
-            # label_dct = {0:'Video_Unencrypted', 1:'Video_Tor', 2:'Video_VPN', 3:'VOIP_Unencrypted', 4:'VOIP_Tor', 5:'VOIP_VPN',
-            #  6:'FileTransfer_Unencrypted', 7:'FileTransfer_Tor', 8:'FileTransfer_VPN', 9:'Chat_Unencrypted', 10:'Chat_Tor',
-            #  11:'Chat_VPN', 12:'Browsing_Unencrypted', 13:'Browsing_Tor'}
-            label_dct = {0:'VOIP_VPN', 1:'FileTransfer_VPN', 2:'Chat_VPN'}
+            label_dct = {0:'Video_Unencrypted', 1:'Video_Tor', 2:'Video_VPN', 3:'VOIP_Unencrypted', 4:'VOIP_Tor', 5:'VOIP_VPN',
+             6:'FileTransfer_Unencrypted', 7:'FileTransfer_Tor', 8:'FileTransfer_VPN', 9:'Chat_Unencrypted', 10:'Chat_Tor',
+             11:'Chat_VPN', 12:'Browsing_Unencrypted', 13:'Browsing_Tor'}
 
             if label_dct[label] == self.User_params['Dataset_params']['plot_data_type']:
 

@@ -86,7 +86,7 @@ User_params = {
 'surrogate_a_fast_sigmoid_tanh' : 0.5,
 'surrogate_sigma_scale'         : 1,
 
-'nb_steps'                : 400, # 300                   # simulating time steps for 200 time steps
+'nb_steps'                : 300, # 300                   # simulating time steps for 200 time steps
 'weight_decay'            : 1e-5,
 'betas'                   : (0.9, 0.999),
 'time_step'               : 1e-3,                   # 1ms Time step
@@ -154,8 +154,8 @@ User_params['Train_params'] = {
 }
 User_params['Dataset_params'] = {
 # Parameters of VPN dataset
-'nb_bins_time'            : 400, #300
-'nb_bins_size'            : 400, #300
+'nb_bins_time'            : 300, #300
+'nb_bins_size'            : 300, #300
 'gaps'                    : [1,10,20],    #intervals between graduations
 'min_value'               : 40,           # Minimum packet length to start the bins with
 

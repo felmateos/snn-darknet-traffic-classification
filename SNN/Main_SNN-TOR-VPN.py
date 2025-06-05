@@ -351,7 +351,7 @@ def compute_classification_accuracy(model, dataloader):
     return np.mean(accs)
     
 
-def compute_confusion_matrix(model, dataloader):
+def compute_confusion_matrix(model, dataloader, percent=False):
     confusion_matrix = np.zeros((User_params['nb_outputs'], User_params['nb_outputs'])).astype(int)
     
     with torch.no_grad():
@@ -377,31 +377,18 @@ def compute_confusion_matrix(model, dataloader):
 
             for i in range(len(y_batch)):
                 confusion_matrix[am[i],y_batch[i]] += 1
-                
-    return confusion_matrix.astype(int)
+    if percent:
+        confusion_matrix = confusion_matrix.astype(float) / confusion_matrix.sum(axis=1, keepdims=True)
+        confusion_matrix = np.round(confusion_matrix * 100, 2)
+
+    return confusion_matrix
 
 
 def compute_and_print_score_categories(confusion_matrix):
 
-    # if User_params['Problem'] == "All" or User_params['Problem']=="All_with_encryption_feature":
-    #     categ_name = {0:'Video', 1:'VOIP', 2:'File Transfer', 3:'Chat', 4:'Browsing', 5:'nonVPN', 6:'Tor', 7:'VPN'}
-    #     categ_list = {0:[0,1,2], 1:[3,4,5], 2:[6,7,8], 3:[9,10,11], 4:[12,13], 5:[0,3,6,9,12], 6:[1,4,7,10,13], 7:[2,5,8,11]}
-    # elif User_params['Problem'] == "Encryption":
-    #     categ_name = {0:'nonVPN', 1:'VPN', 2:'Tor'}
-    #     categ_list = {0:[0], 1:[1], 2:[2]}
-    # elif User_params['Problem'] == "Application" or User_params['Problem'] == "Application_with_encryption_feature":
-    #     categ_name = {0:'Video', 1:'VOIP', 2:'File Transfer', 3:'Chat', 4:'Browsing'}
-    #     categ_list = {0:[0], 1:[1], 2:[2], 3:[3], 4:[4]}
-
     if User_params['Problem'] == "All" or User_params['Problem']=="All_with_encryption_feature":
-        categ_name = {0:'VOIP', 1:'File Transfer', 2:'Chat', 3:'VPN'}
-        categ_list = {0:[0], 1:[1], 2:[2], 3:[0,1,2]}
-    # elif User_params['Problem'] == "Encryption":
-    #     categ_name = {0:'nonVPN', 1:'VPN', 2:'Tor'}
-    #     categ_list = {0:[0], 1:[1], 2:[2]}
-    elif User_params['Problem'] == "Application" or User_params['Problem'] == "Application_with_encryption_feature":
-        categ_name = {0:'VOIP', 1:'File Transfer', 2:'Chat'}
-        categ_list = {0:[0], 1:[1], 2:[2]}
+        categ_name = {0:'None', 1:'Merlin', 2:'Mirai-Dos', 3:'Mirai-Infection', 4:'Network-Scanning', 5:'Benign', 6:'Malicious'}
+        categ_list = {0:[0], 1:[1,2,3,4]}
 
     Avg_Pr = []
     Total_Acc = []
@@ -458,16 +445,12 @@ def compute_and_print_score_categories(confusion_matrix):
             Total_Acc_temp, Avg_Pr_temp, Ac, Pr, Re = compute_matrix_total_metrics(confusion_matrix_temp)
             
             print("Multi-class for " + categ_name[i] + " : Avg_Pr" + " = %.1f"%(Avg_Pr_temp*100)+"%" " ; Total_Acc" + " = %.1f"%(Total_Acc_temp*100)+"%")
-            # print("One vs all for Video-" + categ_name[i] + " : Re" + " = %.1f"%(Re[0]*100)+"%" + " ; Pr" + " = %.1f"%(Pr[0]*100)+"%" " ; Ac" + " = %.1f"%(Ac[0]*100)+"%")
-            # print("One vs all for VoIP-" + categ_name[i] + " : Re" + " = %.1f"%(Re[1]*100)+"%" + " ; Pr" + " = %.1f"%(Pr[1]*100)+"%" " ; Ac" + " = %.1f"%(Ac[1]*100)+"%")
-            # print("One vs all for F.T.-" + categ_name[i] + " : Re" + " = %.1f"%(Re[2]*100)+"%" + " ; Pr" + " = %.1f"%(Pr[2]*100)+"%" " ; Ac" + " = %.1f"%(Ac[2]*100)+"%")
-            # print("One vs all for Chat-" + categ_name[i] + " : Re" + " = %.1f"%(Re[3]*100)+"%" + " ; Pr" + " = %.1f"%(Pr[3]*100)+"%" " ; Ac" + " = %.1f"%(Ac[3]*100)+"%")
-            # if (not categ_name[i] == "VPN"):
-            #     print("One vs all for Browsing-" + categ_name[i] + " : Re" + " = %.1f"%(Re[4]*100)+"%" + " ; Pr" + " = %.1f"%(Pr[4]*100)+"%" " ; Ac" + " = %.1f"%(Ac[4]*100)+"%")
-
-            print("One vs all for VoIP-" + categ_name[i] + " : Re" + " = %.1f"%(Re[0]*100)+"%" + " ; Pr" + " = %.1f"%(Pr[0]*100)+"%" " ; Ac" + " = %.1f"%(Ac[0]*100)+"%")
-            print("One vs all for F.T.-" + categ_name[i] + " : Re" + " = %.1f"%(Re[1]*100)+"%" + " ; Pr" + " = %.1f"%(Pr[1]*100)+"%" " ; Ac" + " = %.1f"%(Ac[1]*100)+"%")
-            print("One vs all for Chat-" + categ_name[i] + " : Re" + " = %.1f"%(Re[2]*100)+"%" + " ; Pr" + " = %.1f"%(Pr[2]*100)+"%" " ; Ac" + " = %.1f"%(Ac[2]*100)+"%")
+            print("One vs all for Video-" + categ_name[i] + " : Re" + " = %.1f"%(Re[0]*100)+"%" + " ; Pr" + " = %.1f"%(Pr[0]*100)+"%" " ; Ac" + " = %.1f"%(Ac[0]*100)+"%")
+            print("One vs all for VoIP-" + categ_name[i] + " : Re" + " = %.1f"%(Re[1]*100)+"%" + " ; Pr" + " = %.1f"%(Pr[1]*100)+"%" " ; Ac" + " = %.1f"%(Ac[1]*100)+"%")
+            print("One vs all for F.T.-" + categ_name[i] + " : Re" + " = %.1f"%(Re[2]*100)+"%" + " ; Pr" + " = %.1f"%(Pr[2]*100)+"%" " ; Ac" + " = %.1f"%(Ac[2]*100)+"%")
+            print("One vs all for Chat-" + categ_name[i] + " : Re" + " = %.1f"%(Re[3]*100)+"%" + " ; Pr" + " = %.1f"%(Pr[3]*100)+"%" " ; Ac" + " = %.1f"%(Ac[3]*100)+"%")
+            if (not categ_name[i] == "VPN"):
+                print("One vs all for Browsing-" + categ_name[i] + " : Re" + " = %.1f"%(Re[4]*100)+"%" + " ; Pr" + " = %.1f"%(Pr[4]*100)+"%" " ; Ac" + " = %.1f"%(Ac[4]*100)+"%")
 
             # confusion_matrix_temp = np.copy(confusion_matrix)
             # for ind_1 in range(User_params['nb_outputs']):
@@ -475,42 +458,42 @@ def compute_and_print_score_categories(confusion_matrix):
                     # if not (ind_1 in categ_list[i]) or not (ind_2 in categ_list[i]):
                         # confusion_matrix_temp[ind_1, ind_2] = 0
 
+    """adequar trecho abaixo"""
+    # print(15 * "-")
+    # print("Results for multi-class classification of Encryption techniques (Flowpic- Table3-row7):")
+    # print(15 * "-")
 
-    print(15 * "-")
-    print("Results for multi-class classification of Encryption techniques (Flowpic- Table3-row7):")
-    print(15 * "-")
-
-    confusion_matrix_temp = np.zeros((3,3)).astype(int)
+    # confusion_matrix_temp = np.zeros((3,3)).astype(int)
     # nonVPN_list = categ_list[5]
     # Tor_list = categ_list[6]
-    VPN_list = categ_list[3] #7
+    # VPN_list = categ_list[7] #7
 
-    for ind_1 in range(User_params['nb_outputs']):
-        for ind_2 in range(User_params['nb_outputs']):
-            # if ind_1 in nonVPN_list and ind_2 in nonVPN_list :
-            #     confusion_matrix_temp[0,0] += confusion_matrix[ind_1,ind_2]
-            # elif ind_1 in nonVPN_list and ind_2 in VPN_list :
-            #     confusion_matrix_temp[0,1] += confusion_matrix[ind_1,ind_2]
-            # elif ind_1 in nonVPN_list and ind_2 in Tor_list :
-            #     confusion_matrix_temp[0,2] += confusion_matrix[ind_1,ind_2]
+    # for ind_1 in range(User_params['nb_outputs']):
+    #     for ind_2 in range(User_params['nb_outputs']):
+    #         if ind_1 in nonVPN_list and ind_2 in nonVPN_list :
+    #             confusion_matrix_temp[0,0] += confusion_matrix[ind_1,ind_2]
+    #         elif ind_1 in nonVPN_list and ind_2 in VPN_list :
+    #             confusion_matrix_temp[0,1] += confusion_matrix[ind_1,ind_2]
+    #         elif ind_1 in nonVPN_list and ind_2 in Tor_list :
+    #             confusion_matrix_temp[0,2] += confusion_matrix[ind_1,ind_2]
             
-            # elif ind_1 in VPN_list and ind_2 in nonVPN_list :
-            #     confusion_matrix_temp[1,0] += confusion_matrix[ind_1,ind_2]
-            if ind_1 in VPN_list and ind_2 in VPN_list : #elif
-                confusion_matrix_temp[1,1] += confusion_matrix[ind_1,ind_2]
-            # elif ind_1 in VPN_list and ind_2 in Tor_list :
-            #     confusion_matrix_temp[1,2] += confusion_matrix[ind_1,ind_2]
+    #         elif ind_1 in VPN_list and ind_2 in nonVPN_list :
+    #             confusion_matrix_temp[1,0] += confusion_matrix[ind_1,ind_2]
+    #         elif ind_1 in VPN_list and ind_2 in VPN_list :
+    #             confusion_matrix_temp[1,1] += confusion_matrix[ind_1,ind_2]
+    #         elif ind_1 in VPN_list and ind_2 in Tor_list :
+    #             confusion_matrix_temp[1,2] += confusion_matrix[ind_1,ind_2]
 
-            # elif ind_1 in Tor_list and ind_2 in nonVPN_list :
-            #     confusion_matrix_temp[2,0] += confusion_matrix[ind_1,ind_2]
-            # elif ind_1 in Tor_list and ind_2 in VPN_list :
-            #     confusion_matrix_temp[2,1] += confusion_matrix[ind_1,ind_2]
-            # elif ind_1 in Tor_list and ind_2 in Tor_list :
-            #     confusion_matrix_temp[2,2] += confusion_matrix[ind_1,ind_2]
+    #         elif ind_1 in Tor_list and ind_2 in nonVPN_list :
+    #             confusion_matrix_temp[2,0] += confusion_matrix[ind_1,ind_2]
+    #         elif ind_1 in Tor_list and ind_2 in VPN_list :
+    #             confusion_matrix_temp[2,1] += confusion_matrix[ind_1,ind_2]
+    #         elif ind_1 in Tor_list and ind_2 in Tor_list :
+    #             confusion_matrix_temp[2,2] += confusion_matrix[ind_1,ind_2]
 
-    Total_Acc_temp, Avg_Pr_temp, Ac, Pr, Re = compute_matrix_total_metrics(confusion_matrix_temp)
+    # Total_Acc_temp, Avg_Pr_temp, Ac, Pr, Re = compute_matrix_total_metrics(confusion_matrix_temp)
     
-    print("multi-class classification of Encryption techniques : " + " Avg_Pr" + " = %.1f"%(Avg_Pr_temp*100)+"%" " ; Total_Acc" + " = %.1f"%(Total_Acc_temp*100)+"%")
+    # print("multi-class classification of Encryption techniques : " + " Avg_Pr" + " = %.1f"%(Avg_Pr_temp*100)+"%" " ; Total_Acc" + " = %.1f"%(Total_Acc_temp*100)+"%")
     # print("One vs all for nonVPN" + " : Re" + " = %.1f"%(Re[0]*100)+"%" + " ; Pr" + " = %.1f"%(Pr[0]*100)+"%" " ; Ac" + " = %.1f"%(Ac[0]*100)+"%")
     # print("One vs all for VPN" + " : Re" + " = %.1f"%(Re[1]*100)+"%" + " ; Pr" + " = %.1f"%(Pr[1]*100)+"%" " ; Ac" + " = %.1f"%(Ac[1]*100)+"%")
     # print("One vs all for Tor" + " : Re" + " = %.1f"%(Re[2]*100)+"%" + " ; Pr" + " = %.1f"%(Pr[2]*100)+"%" " ; Ac" + " = %.1f"%(Ac[2]*100)+"%")
@@ -556,7 +539,7 @@ def compute_metrics(TP,TN,FP,FN):
 checkpoint = None
 if User_params['Model_load'] :
     if (os.path.exists(Load_path)):
-        checkpoint = torch.load(Load_path, map_location=device)
+        checkpoint = torch.load(Load_path, map_location=device, weights_only=False)
         snn.load_state_dict(checkpoint['model_state_dict'])
         # params = checkpoint['model_params']
         print("Saved model loaded")
@@ -654,8 +637,9 @@ if User_params['Test_mode'] :
 
     if User_params['Test_Profiler'] :
         with profile(use_cuda=use_cuda) as prof:
-            test_confusion_matrix = compute_confusion_matrix(snn, test_dataloader)
-            test_accuracy, average_precision = compute_and_print_score_categories(test_confusion_matrix)
+            test_confusion_matrix = compute_confusion_matrix(snn, test_dataloader, percent=True)
+            cm = compute_confusion_matrix(snn, test_dataloader)
+            test_accuracy, average_precision = compute_and_print_score_categories(cm)
 
             print("Test accuracy=%.3f"%(test_accuracy))
             print("Average precision = %.1f"%(average_precision)+"%")
@@ -664,8 +648,9 @@ if User_params['Test_mode'] :
         print("Profile :")
         print(prof)
     else :
-        test_confusion_matrix = compute_confusion_matrix(snn, test_dataloader)
-        test_accuracy, average_precision = compute_and_print_score_categories(test_confusion_matrix)
+        test_confusion_matrix = compute_confusion_matrix(snn, test_dataloader, percent=True)
+        cm = compute_confusion_matrix(snn, test_dataloader)
+        test_accuracy, average_precision = compute_and_print_score_categories(cm)
 
         print("Test accuracy=%.3f"%(test_accuracy))
         print("Average precision = %.1f"%(average_precision)+"%")
@@ -677,14 +662,16 @@ if User_params['Test_mode'] :
 # =================================================================================
 
 if (User_params['Plot_graphs']):
-    utils.plot_model_output(snn, User_params, test_dataloader, device, dtype)
+    # utils.plot_model_output(snn, User_params, test_dataloader, label_dct, dtype)
+    utils.plot_model_behaviour_grid_columns(snn, User_params, test_dataloader, label_dct, device, dtype)
 
     plt.figure(figsize=(6, 5))
-    sns.heatmap(test_confusion_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=label_dct.keys(), yticklabels=label_dct.keys())
+    sns.heatmap(test_confusion_matrix, annot=True, fmt='.2f', cmap='Blues', xticklabels=label_dct.keys(), yticklabels=label_dct.keys())
 
     # Adding labels
     plt.xlabel('Predicted')
     plt.ylabel('True')
+    plt.xticks(rotation=45, ha='right')
     plt.title('Confusion Matrix Heatmap')
 
 # =================================================================================

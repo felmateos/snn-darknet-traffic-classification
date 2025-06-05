@@ -1,5 +1,6 @@
 import os
 import csv
+import sys
 from scapy.all import rdpcap, IP, TCP, UDP
 from pathlib import Path
 
@@ -7,6 +8,35 @@ from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn
 from rich.live import Live
 import pandas as pd
 from send2trash import send2trash
+import yaml
+from dacite import from_dict
+from dataclasses import asdict
+import warnings
+
+from config import UserParams
+
+sys.path.append("./")
+warnings.simplefilter("ignore", category=UserWarning)
+
+with open("params.yaml", "r") as file:
+    params = yaml.safe_load(file)
+
+User_params = from_dict(data_class=UserParams, data=params)
+User_params = asdict(User_params)
+
+
+def get_all_files():
+    if User_params['Project'] == 'VPN':
+        # lista de todos arquivos .pcap
+        all_files = [name for database in root_path.iterdir() if database.is_dir()
+                    for crypto_type in database.iterdir() if crypto_type.is_dir()
+                    for name in crypto_type.glob("*.pcap")]
+    else:
+        all_files = [name for database in root_path.iterdir() if database.is_dir()
+                    for category in database.iterdir() if category.is_dir()
+                    for threat in category.iterdir() if threat.is_dir()
+                    for name in threat.glob("*.pcap")]
+    return all_files
 
 
 def get_flow_key(pkt):
@@ -73,7 +103,7 @@ def process_pcap_to_csv(pcap_path, output_dir):
             writer.writerow(row)
 
 
-def get_class(pcap_name: str) -> str:
+def get_vpn_class(pcap_name: str) -> str:
     name = pcap_name.lower()
     
     crypto_label = next((label for label, keywords in crypto.items() if any(k in name for k in keywords)), None)
@@ -112,12 +142,7 @@ if not done_csv_name.exists():
 files_done = pd.read_csv(done_csv_name.__str__())
 files_done_list = files_done['file_name'].tolist()
 
-
-# lista de todos arquivos .pcap
-all_files = [name for database in root_path.iterdir() if database.is_dir()
-             for crypto_type in database.iterdir() if crypto_type.is_dir()
-             for name in crypto_type.glob("*.pcap")]
-
+all_files = get_all_files()
 
 # checar tamanho e fazer split caso necessário
 for file in all_files:
@@ -128,9 +153,7 @@ for file in all_files:
         send2trash(file)
 
 # atualiza lista de todos arquivos .pcap
-all_files = [name for database in root_path.iterdir() if database.is_dir()
-             for crypto_type in database.iterdir() if crypto_type.is_dir()
-             for name in crypto_type.glob("*.pcap")]
+all_files = get_all_files()
 
 # lista de arquivos .pcap nao processados
 not_done_list = [str(item) for item in all_files if str(item) not in files_done_list]
@@ -153,15 +176,29 @@ progress.update(task, completed=(len(all_files) - len(not_done_list)))
 with Live(progress, refresh_per_second=2):
 
     for file in not_done_list:
-        crypto_type, pcap_file = (str(file).split('\\')[2], str(file).split('\\')[3])
-        pcap_name = f"{crypto_type}\\{pcap_file}".lower()
+        if User_params['Project'] == 'VPN':
+            crypto_type, pcap_file = (str(file).split('\\')[2], str(file).split('\\')[3])
+            pcap_name = f"{crypto_type}\\{pcap_file}".lower()
 
-        pcap_class = get_class(pcap_name)
+            pcap_class = get_vpn_class(pcap_name)
 
-        process_pcap_to_csv(str(file), str(save_database.joinpath(pcap_class.replace('_', '/'))))
+            process_pcap_to_csv(str(file), str(save_database.joinpath(pcap_class.replace('_', '/'))))
 
-        files_done.loc[len(files_done)] = [len(files_done), str(file)]
-        files_done.to_csv(done_csv_name.__str__(), index=False)
-        files_done_list = files_done['file_name'].tolist()
-        
-        progress.update(task, advance=1)
+            files_done.loc[len(files_done)] = [len(files_done), str(file)]
+            files_done.to_csv(done_csv_name.__str__(), index=False)
+            files_done_list = files_done['file_name'].tolist()
+            
+            progress.update(task, advance=1)
+        else:
+            category, threat = (str(file).split('\\')[2], str(file).split('\\')[3])
+            pcap_class = f"{category.title()}/{threat.title()}"
+
+            # pcap_class = get_vpn_class(pcap_name)
+
+            process_pcap_to_csv(str(file), str(save_database.joinpath(pcap_class)))
+
+            files_done.loc[len(files_done)] = [len(files_done), str(file)]
+            files_done.to_csv(done_csv_name.__str__(), index=False)
+            files_done_list = files_done['file_name'].tolist()
+            
+            progress.update(task, advance=1)

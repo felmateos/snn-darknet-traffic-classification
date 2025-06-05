@@ -142,6 +142,102 @@ def sparse_data_generator(X, y, batch_size, nb_steps, nb_units, time_step, devic
 
 #=======================================================================================
 
+def plot_input(ax, input_data, title=None):
+    input_data = input_data.squeeze().cpu().numpy()  # Remove canais extras e converte para numpy
+    ax.imshow(input_data.T, cmap=plt.cm.gray_r, origin="lower", aspect='auto')
+    ax.set_xlabel("Time (binned)")
+    ax.set_ylabel(title)
+
+
+def plot_spike(ax, spk_data, title=None):
+    ax.imshow(spk_data.T, cmap=plt.cm.gray_r, origin="lower", aspect='auto')
+    if title:
+        ax.set_title(title)
+    ax.set_xlabel("Time")
+
+
+def plot_membrane(ax, mem_data, title=None):
+    ax.plot(mem_data)
+    if title:
+        ax.set_title(title)
+    ax.set_xlabel("Time")
+
+
+def plot_model_behaviour_grid_columns(model, User_params, dataloader, label_dct, device, dtype):
+    X_batch, y_batch = next(iter(dataloader))
+    X_batch = X_batch.to(device, dtype)
+    y_batch = y_batch.to(device)
+
+    batch_idx = []
+
+    if len(torch.unique(y_batch)) == len(label_dct.keys()):
+        print('tem todas as classes')
+
+    for id_class in label_dct.values():
+        for (idx, y) in enumerate(y_batch):
+            if int(y.item()) == id_class:
+                batch_idx.append(idx)
+                break
+
+    model(X_batch)
+
+    nb_instances = len(label_dct)
+    batch_size = User_params['batch_size']
+
+    # Coletar camadas de interesse
+    layers_to_plot = []
+    layer_titles = []
+    for l in model.layers:
+        if isinstance(l, (
+            models.SpikingDenseLayer, models.SpikingConv2DLayer, models.SpikingConv2DLayer_custom,
+            models.SpikingConv3DLayer, models.SpikingConv3DLayer_separable, models.Spiking3DPoolingLayer
+        )) or models.isReadoutlayer(l):
+            layers_to_plot.append(l)
+            layer_titles.append(type(l).__name__)
+
+    total_columns = len(layers_to_plot) + 1  # +1 para coluna de entrada
+    fig = plt.figure(figsize=(5 * total_columns, 4 * nb_instances))
+    gs = GridSpec(nb_instances, total_columns)
+
+    for row, bidx in enumerate(batch_idx):
+        # Coluna 0: entrada (imagem do histograma)
+        ax = fig.add_subplot(gs[row, 0])
+        id_label = key(label_dct, int(y_batch[bidx]))
+        plot_input(ax, X_batch[bidx].cpu(), title=id_label)
+
+    for col, layer in enumerate(layers_to_plot):
+        if isinstance(layer, models.SpikingDenseLayer):
+            spk_rec = layer.spk_rec_hist 
+        elif isinstance(layer, models.SpikingConv2DLayer):
+            spk_rec = layer.spk_rec_hist.sum(1)
+        elif isinstance(layer, (
+            models.SpikingConv2DLayer_custom, models.SpikingConv3DLayer,
+            models.SpikingConv3DLayer_separable, models.Spiking3DPoolingLayer
+        )):
+            spk_rec = layer.spk_rec_hist.sum(1)
+            spk_rec = np.reshape(
+                spk_rec,
+                (batch_size, User_params['nb_steps'], layer.output_shape[0] * layer.output_shape[1])
+            )
+        elif models.isReadoutlayer(layer):
+            mem_rec = layer.mem_rec_hist 
+            start = User_params['Train_params']['Readout_steps_start']
+            end = User_params['Train_params']['Readout_steps_end'] 
+
+        for row, bidx in enumerate(batch_idx):
+            ax = fig.add_subplot(gs[row, col + 1])  # +1 por conta da coluna de entrada
+
+            if models.isReadoutlayer(layer):
+                plot_membrane(ax, mem_rec[bidx, start:end], title=layer_titles[col] if row == 0 else None)
+            else:
+                plot_spike(ax, spk_rec[bidx], title=layer_titles[col] if row == 0 else None)
+
+    plt.tight_layout()
+    plt.show()
+
+
+
+
 def plot_spk_rec(spk_rec, idx, plot_name="Spikes record"):
 
     nb_plt = len(idx)
@@ -179,7 +275,7 @@ def plot_model_output(model, User_params, dataloader, device, dtype):
     X_batch = next(iter(dataloader))[0].to(device, dtype)
     model(X_batch)
 
-    nb_plt = 16 #9
+    nb_plt = 3 #9
     if (User_params['batch_size'] >= 64):
         batch_idx = np.random.choice(User_params['batch_size'], nb_plt, replace=False)
     else:
