@@ -22,7 +22,7 @@ from config import UserParams
 sys.path.append("./")
 warnings.simplefilter("ignore", category=UserWarning)
 
-with open("params.yaml", "r") as file:
+with open("best_params.yaml", "r") as file:
     params = yaml.safe_load(file)
 
 User_params = from_dict(data_class=UserParams, data=params)
@@ -387,8 +387,8 @@ def compute_confusion_matrix(model, dataloader, percent=False):
 def compute_and_print_score_categories(confusion_matrix):
 
     if User_params['Problem'] == "All" or User_params['Problem']=="All_with_encryption_feature":
-        categ_name = {0:'None', 1:'Merlin', 2:'Mirai-Dos', 3:'Mirai-Infection', 4:'Network-Scanning', 5:'Benign', 6:'Malicious'}
-        categ_list = {0:[0], 1:[1,2,3,4]}
+        categ_name = {0:'None', 1:'Botnet', 2:'Exploit', 3:'Infiltration', 5:'Benign', 6:'Malicious'}
+        categ_list = {0:[0], 1:[1,2,3]}
 
     Avg_Pr = []
     Total_Acc = []

@@ -54,8 +54,8 @@ def copy_file(List, name):
             name_list.write(name + "/" + file + ".csv\n")
     return None
 
-pct_train = 0.65 # percentage of training data
-pct_test = 0.2 # percentage of testing data
+pct_train = 0.7 # percentage of training data
+pct_test = 0.15 # percentage of testing data
 pct_valid = 0.15 # percentage of validation data
 
 assert pct_train + pct_test + pct_valid == 1

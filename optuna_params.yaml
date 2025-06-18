@@ -1,0 +1,198 @@
+nb_epochs: 10  # 30
+warmup_epochs: 2  # 5
+snapshot_epochs: [5, 10]  # 15, 30
+
+lateral_connections: false
+# Leaky_Neuron: true
+# spike_limit: false
+# spike_limit_mode: soft_reset
+Regularization_Term: [squared, max]
+High_speed_mode: false
+# Dropout_mode: Nodes
+surrogate_backward_mode: sigmoid
+Readout_time_reduction: mean
+warmup_Readout_mode: mean
+optimizer: Adam
+scheduler: ReduceLROnPlateau
+Project: Darknet
+Problem: All
+Environment: laptop
+Dataset: Gotham
+Model_features: "spike spread regularization is in all layers!,Removed spike spread loss in latency mode,"
+User_comment: ""
+
+Model_load: false
+load_path: "/Model/Model_epoch.pth"
+Train_mode: true
+Validation_mode: true
+Test_mode: true
+Results_save: true
+Train_Profiler: false
+Test_Profiler: false
+Plot_graphs: true
+plot_show: true
+Find_model: false
+
+reg_loss_coef: 0
+spk_spread_loss_coef: 0
+
+lr: 0.0005
+batch_size: 256
+Batch_num_limit: 10000
+
+# nb_inputs: 784
+image_W: 28
+image_H: 28
+Input_channels: 1
+nb_dense_layer: 100
+nb_outputs: 4
+
+w_init_mean: 0
+w_init_std: 0.15
+
+surrogate_sigma_sigmoid: 10
+surrogate_sigma_rec: 1
+surrogate_a_fast_sigmoid_abs: 0.5
+surrogate_a_fast_sigmoid_tanh: 0.5
+surrogate_sigma_scale: 1
+
+nb_steps: 300
+weight_decay: 0.0001
+betas: [0.9, 0.999]
+time_step: 0.001
+gamma: 0.85
+eps: 0.00000001
+Max_spikes_per_run: 1
+
+#==================================
+Scheduler_params:
+  mode: min
+  factor: 0.1
+  patience: 3
+  threshold: 0.0001
+  threshold_mode: rel
+  cooldown: 0
+  min_lr: 0
+  eps: 0.00000001
+  T_max: 2
+
+#==================================
+Train_params:
+  w: true
+  v: true
+  b: true
+  beta: true
+  surrogate_sigma: false
+  BN_scale: true
+  BN_offset: true
+  Readout_b_latency: true
+  Readout_latency_scale: false
+
+  BN_intermediate_mode: without_offset
+  surrogate_sigma_mode: one
+  layer_beta_mode: one_per_layer
+  train_surrogate_mode: heaviside
+  test_surrogate_mode: heaviside
+  Readout_latency_output_mode: method_1
+  Readout_max_latency_output_mode: method_1
+
+  Readout_latency_scale_val: 0.1
+  Readout_steps_start: 0
+  Readout_steps_end: 300
+
+  beta_init_method: constant
+  beta_constant_val: 0.7
+  beta_normal_mean: 0.7
+  beta_normal_std: 0.01
+  beta_uniform_start: 0
+  beta_uniform_end: 1
+
+  b_init_method: constant
+  b_constant_val: 1.0
+  b_normal_mean: 1.0
+  b_normal_std: 0.01
+  b_uniform_start: 0
+  b_uniform_end: 1
+
+#==================================
+Dataset_params:
+  nb_bins_time: 300
+  nb_bins_size: 300
+  gaps: [1, 10, 20]
+  min_value: 40
+  plot_data_mode: none
+  plot_data_type: Browsing_Unencrypted
+
+#==================================
+spike_params:
+  nb_steps: 300
+  time_step: 0.001
+  spike_limit: false
+  spike_limit_mode: soft_reset
+  Max_spikes_per_run: 1
+  Leaky_Neuron: true
+
+device: {}
+
+#==================================
+find_params:
+  main_params:
+    - nb_epochs
+    - warmup_epochs
+    - snapshot_epochs
+    - lateral_connections
+    - Leaky_Neuron
+    - spike_limit
+    - spike_limit_mode
+    - High_speed_mode
+    - surrogate_backward_mode
+    - Readout_time_reduction
+    - warmup_Readout_mode
+    - optimizer
+    - scheduler
+    - Project
+    - Dataset
+    - lr
+    - batch_size
+    - nb_dense_layer
+    - nb_outputs
+    - w_init_mean
+    - w_init_std
+    - surrogate_sigma_scale
+    - nb_steps
+    - weight_decay
+    - betas
+    - time_step
+    - gamma
+    - Max_spikes_per_run
+    - Scheduler_params
+    - Train_params
+
+  dont_care_params:
+    - snapshot_epochs
+    - Environment
+    - User_comment
+    - Model_load
+    - load_path
+    - Validation_mode
+    - Test_mode
+    - Results_save
+    - Train_Profiler
+    - Test_Profiler
+    - Plot_graphs
+    - plot_show
+    - Find_model
+    - device
+    - find_params
+    - Results_path
+
+  main_mismatch_penalty: 10
+  non_main_mismatch_penalty: 2
+  main_no_exist_penalty: 20
+  non_main_no_exist_penalty: 1
+
+  Find_mode: max_accuracy
+  Find_print_details: false
+  Find_path: "/Results/Result.json"
+
+Results_path: "/Results/Result.json"

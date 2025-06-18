@@ -1,23 +1,23 @@
-nb_epochs: 30  # 30
-warmup_epochs: 5  # 5
-snapshot_epochs: [15, 30]  # 15, 30
+nb_epochs: [5, 7, 10]
+warmup_epochs: [1, 2, 4]
+snapshot_epochs: [[2,5]]
 
-lateral_connections: false
+lateral_connections: [false]
 # Leaky_Neuron: true
 # spike_limit: false
 # spike_limit_mode: soft_reset
-Regularization_Term: [squared, max]
-High_speed_mode: false
+Regularization_Term: [[squared, max]]
+High_speed_mode: [false]
 # Dropout_mode: Nodes
-surrogate_backward_mode: sigmoid
-Readout_time_reduction: mean
-warmup_Readout_mode: mean
-optimizer: Adam
-scheduler: ReduceLROnPlateau
+surrogate_backward_mode: [sigmoid]
+Readout_time_reduction: [mean]
+warmup_Readout_mode: [mean]
+optimizer: [Adam]
+scheduler: [ReduceLROnPlateau]
 Project: Darknet
 Problem: All
 Environment: laptop
-Dataset: Gotham
+Dataset: [Gotham]
 Model_features: "spike spread regularization is in all layers!,Removed spike spread loss in latency mode,"
 User_comment: ""
 
@@ -25,7 +25,7 @@ Model_load: false
 load_path: "/Model/Model_epoch.pth"
 Train_mode: true
 Validation_mode: true
-Test_mode: true
+Test_mode: false
 Results_save: true
 Train_Profiler: false
 Test_Profiler: false
@@ -36,89 +36,89 @@ Find_model: false
 reg_loss_coef: 0
 spk_spread_loss_coef: 0
 
-lr: 0.0005
-batch_size: 256
+lr: [0.0005]
+batch_size: [128]
 Batch_num_limit: 10000
 
 # nb_inputs: 784
 image_W: 28
 image_H: 28
 Input_channels: 1
-nb_dense_layer: 100
-nb_outputs: 5
+nb_dense_layer: [25, 50, 100]
+nb_outputs: [4]
 
-w_init_mean: 0
-w_init_std: 0.15
+w_init_mean: [0]
+w_init_std: [0.15]
 
 surrogate_sigma_sigmoid: 10
 surrogate_sigma_rec: 1
 surrogate_a_fast_sigmoid_abs: 0.5
 surrogate_a_fast_sigmoid_tanh: 0.5
-surrogate_sigma_scale: 1
+surrogate_sigma_scale: [1.0]
 
-nb_steps: 300
-weight_decay: 0.0001
-betas: [0.9, 0.999]
-time_step: 0.001
-gamma: 0.85
+nb_steps: [300]
+weight_decay: [0.0001, 0.001]
+betas: [[0.9, 0.999]]
+time_step: [0.001]
+gamma: [0.85, 0.9, 0.95]
 eps: 0.00000001
-Max_spikes_per_run: 1
+Max_spikes_per_run: [1]
 
 #==================================
 Scheduler_params:
-  mode: min
-  factor: 0.1
-  patience: 3
-  threshold: 0.0001
-  threshold_mode: rel
-  cooldown: 0
-  min_lr: 0
+  mode: [min]
+  factor: [0.1]
+  patience: [3]
+  threshold: [0.0001]
+  threshold_mode: [rel]
+  cooldown: [0]
+  min_lr: [0]
   eps: 0.00000001
-  T_max: 2
+  T_max: [2]
 
 #==================================
 Train_params:
-  w: true
-  v: true
-  b: true
-  beta: true
-  surrogate_sigma: false
-  BN_scale: true
-  BN_offset: true
-  Readout_b_latency: true
-  Readout_latency_scale: false
+  w: [true]
+  v: [true]
+  b: [true]
+  beta: [true]
+  surrogate_sigma: [false]
+  BN_scale: [true]
+  BN_offset: [true]
+  Readout_b_latency: [true]
+  Readout_latency_scale: [false]
 
-  BN_intermediate_mode: without_offset
-  surrogate_sigma_mode: one
-  layer_beta_mode: one_per_layer
-  train_surrogate_mode: heaviside
-  test_surrogate_mode: heaviside
-  Readout_latency_output_mode: method_1
-  Readout_max_latency_output_mode: method_1
+  BN_intermediate_mode: [without_offset]
+  surrogate_sigma_mode: [one]
+  layer_beta_mode: [one_per_layer]
+  train_surrogate_mode: [heaviside]
+  test_surrogate_mode: [heaviside]
+  Readout_latency_output_mode: [method_1]
+  Readout_max_latency_output_mode: [method_1]
 
-  Readout_latency_scale_val: 0.1
-  Readout_steps_start: 0
-  Readout_steps_end: 300
+  Readout_latency_scale_val: [0.05, 0.1, 0.2]
+  Readout_steps_start: [0]
+  Readout_steps_end: [300]
 
-  beta_init_method: constant
-  beta_constant_val: 0.7
-  beta_normal_mean: 0.7
-  beta_normal_std: 0.01
-  beta_uniform_start: 0
-  beta_uniform_end: 1
+  beta_init_method: [constant]
+  beta_constant_val: [0.5, 0.7, 0.9]
+  beta_normal_mean: [0.6, 0.7]
+  beta_normal_std: [0.01, 0.05]
+  beta_uniform_start: [0.0]
+  beta_uniform_end: [1.0]
 
-  b_init_method: constant
-  b_constant_val: 1.0
-  b_normal_mean: 1.0
-  b_normal_std: 0.01
-  b_uniform_start: 0
-  b_uniform_end: 1
+  b_init_method: [constant]
+  b_constant_val: [1.0]
+  b_normal_mean: [0.7]
+  b_normal_std: [0.01]
+  b_uniform_start: [0.0]
+  b_uniform_end: [1.0]
 
 #==================================
 Dataset_params:
   nb_bins_time: 300
   nb_bins_size: 300
-  gaps: [1, 10, 20]
+  gaps: [[1, 10, 20]]
   min_value: 40
   plot_data_mode: none
   plot_data_type: Browsing_Unencrypted

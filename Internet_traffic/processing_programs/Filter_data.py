@@ -18,6 +18,49 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
+nat_map = {
+    # Atacante principal (Kali)
+    "205.174.165.73": [
+        "192.168.10.8",     # Windows Vista
+        "192.168.10.25",    # MAC
+        "192.168.10.50",    # WebServer Ubuntu
+        "192.168.10.51"     # Ubuntu12 (Heartbleed)
+    ],
+
+    # Vítimas internas mapeadas para o IP público 205.174.165.73 (respostas)
+    "192.168.10.8": ["205.174.165.73"],
+    "192.168.10.25": ["205.174.165.73"],
+    "192.168.10.50": ["205.174.165.73"],
+    "192.168.10.51": ["205.174.165.73"],
+
+    # WebServer Ubuntu com IP público da firewall (NAT)
+    "205.174.165.80": [
+        "192.168.10.50",    # WebServer Ubuntu
+        "192.168.10.51"     # Ubuntu12
+    ],
+    "192.168.10.50": ["205.174.165.80"],
+    "192.168.10.51": ["205.174.165.80"],
+
+    # IPs públicos das máquinas da botnet (LOIT)
+    "205.174.165.69": ["192.168.10.50"],
+    "205.174.165.70": ["192.168.10.50"],
+    "205.174.165.71": ["192.168.10.50"],
+
+    # Relacionamentos anteriores já registrados
+    "205.174.165.66": ["192.168.10.5"],
+    "192.168.10.5": ["205.174.165.66"],
+}
+
+def ip_equiv(ip1, ip2, nat_map):
+    # Retorna True se ip1 e ip2 são equivalentes via NAT
+    if ip1 == ip2:
+        return True
+    if ip1 in nat_map and nat_map[ip1] == ip2:
+        return True
+    if ip2 in nat_map and nat_map[ip2] == ip1:
+        return True
+    return False
+
 # A function that enables to get the key from the value that corresponds to it
 def key(dictio,val):
     for c,v in dictio.items():
@@ -64,16 +107,24 @@ def data(session):
     return App, IP, Port
 
 # A function that, given a session, returns the paired up session (IP adresses and port numbers inverted)
-def pairing(list_session, session):
+def pairing(list_session, session, nat_map):
     App, IP, Port = data(session)
     for session2 in list_session:
         app, ip, port = data(session2)
-        if App == app and ip[0] == IP[1] and ip[1] == IP[0] and port[0] == Port[1] and port[1] == Port[0]:
+        # if App != app:
+        #     continue
+        if (
+            ip_equiv(str(IP[0]), str(ip[1]), nat_map) and
+            ip_equiv(str(IP[1]), str(ip[0]), nat_map) and
+            Port[0] == port[1] and
+            Port[1] == port[0]
+        ):
             list_session.remove(session)
             list_session.remove(session2)
             return (session, session2)
     list_session.remove(session)
     return "Single"
+
     
 IP_adresses = {}
 names = {} # Keys = labels ; Values = List of session names
@@ -96,7 +147,7 @@ for root,dirs,files in os.walk("./"):
     
     for file in files:
         
-        if ".csv" not in file:
+        if ".csv" not in file: ##############################################
             continue 
         
         # print(file)
@@ -129,7 +180,7 @@ for root,dirs,files in os.walk("./"):
         
     while len(names[label]) !=0 :
         session = names[label][0]
-        tuple_pairs = pairing(names[label], session)
+        tuple_pairs = pairing(names[label], session, nat_map)
         if "Single" in tuple_pairs:
             Pairs[label].append((session, "None"))
         else:
@@ -139,8 +190,8 @@ for root,dirs,files in os.walk("./"):
     
 TPS = 60 # Time Per Session
 DELTA_T = 15 # Interval between sessions
-MIN_TPS = 40 # Minimum time per session
-MIN_LENGHT = 10 # Minimum number of packets for one session
+MIN_TPS = 0.00001 # Minimum time per session
+MIN_LENGHT = 1 # Minimum number of packets for one session
 
 # A function that builds the histograms according to the constraints (above values)
 def build_histogram(list_ind, times, sizes):
@@ -149,6 +200,7 @@ def build_histogram(list_ind, times, sizes):
     if type(times[0]) == int:
         return times, sizes
     if len(list_ind) < MIN_LENGHT:
+        print(f"Descartado: poucos pacotes ({len(list_ind)} < {MIN_LENGHT})")
         return "NULL", "NULL"
     first_ind, last_ind = list_ind[0], list_ind[-1]
     Time, Size = times[first_ind:last_ind+1], sizes[first_ind:last_ind+1]
@@ -165,7 +217,10 @@ def splitting(pairs):
         times2, sizes2 = Values[pairs[1]]["Time_of_arrival"], Values[pairs[1]]["Packet_size"]
         
     time_max = max(times1[-1], times2[-1])
-    for t in range(int(time_max/DELTA_T - TPS/DELTA_T) + 1):
+    rng = int(time_max/DELTA_T - TPS/DELTA_T) + 1
+    if rng <= 0:
+        rng = 1
+    for t in range(rng):
         ind_times1 = [i for i in range(len(times1)) if ((times1[i] >= t*DELTA_T) and (times1[i] <= (t*DELTA_T+TPS)))]
         ind_times2 = [i for i in range(len(times2)) if ((times2[i] >= t*DELTA_T) and (times2[i] <= (t*DELTA_T+TPS)))]
         Time1, Size1 = build_histogram(ind_times1, times1, sizes1)
@@ -192,7 +247,7 @@ def save_image(name,Time,Size):
     plt.xlabel("Time of arrival")
     plt.ylabel("Packet size")
     plt.title(name + "\n " + str(len(Size)) + " paquets ; " + str(round(Time[-1]-Time[0],1)) + "s")
-    plt.savefig("Pictures/" + name.split("_")[0] + "/" + name + ".png")
+    plt.savefig("Pictures/" + name.split("_")[0] + "/" + name.split("_")[1] + "/" + name + ".png")
     plt.clf()
     
 name_list = open("Dataset.csv", "w", newline='')

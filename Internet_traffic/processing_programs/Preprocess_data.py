@@ -12,6 +12,8 @@ import yaml
 from dacite import from_dict
 from dataclasses import asdict
 import warnings
+from datetime import datetime, time, timezone
+from zoneinfo import ZoneInfo
 
 from config import UserParams
 
@@ -32,10 +34,7 @@ def get_all_files():
                     for crypto_type in database.iterdir() if crypto_type.is_dir()
                     for name in crypto_type.glob("*.pcap")]
     else:
-        all_files = [name for database in root_path.iterdir() if database.is_dir()
-                    for category in database.iterdir() if category.is_dir()
-                    for threat in category.iterdir() if threat.is_dir()
-                    for name in threat.glob("*.pcap")]
+        all_files = [database for database in root_path.glob("*.pcap")]
     return all_files
 
 
@@ -58,7 +57,99 @@ def get_flow_key(pkt):
     return None
 
 
+attack_schedule = {
+    datetime(2017, 7, 3).date(): [],  # Benign traffic only
+
+    datetime(2017, 7, 4).date(): [
+        {"type": "BruteForce", "src": "205.174.165.73", "dst": "205.174.165.68", "start": time(9, 20), "end": time(10, 20)},
+        {"type": "BruteForce", "src": "205.174.165.73", "dst": "205.174.165.68", "start": time(14, 0), "end": time(15, 0)},
+    ],
+
+    datetime(2017, 7, 5).date(): [
+        {"type": "DDoS",    "src": "205.174.165.73", "dst": "205.174.165.68", "start": time(9, 47), "end": time(10, 10)},
+        {"type": "DDoS", "src": "205.174.165.73", "dst": "205.174.165.68", "start": time(10, 14), "end": time(10, 35)},
+        {"type": "DDoS",         "src": "205.174.165.73", "dst": "205.174.165.68", "start": time(10, 43), "end": time(11, 0)},
+        {"type": "DDoS",    "src": "205.174.165.73", "dst": "205.174.165.68", "start": time(11, 10), "end": time(11, 23)},
+        {"type": "Exploit","src": "205.174.165.73","dst": "205.174.165.66", "start": time(15, 12), "end": time(15, 32)},
+    ],
+
+    datetime(2017, 7, 6).date(): [
+        {"type": "BruteForce", "src": "205.174.165.73", "dst": "205.174.165.68", "start": time(9, 20), "end": time(10, 0)},
+        {"type": "WebAttack",        "src": "205.174.165.73", "dst": "205.174.165.68", "start": time(10, 15), "end": time(10, 35)},
+        {"type": "WebAttack",       "src": "205.174.165.73", "dst": "205.174.165.68", "start": time(10, 40), "end": time(10, 42)},
+        {"type": "Exploit", "src": "205.174.165.73", "dst": "192.168.10.8", "start": time(14, 19), "end": time(14, 35)},
+        {"type": "Infiltration",  "src": "205.174.165.73", "dst": "192.168.10.25", "start": time(14, 53), "end": time(15, 0)},
+        {"type": "Infiltration",   "src": "205.174.165.73", "dst": "192.168.10.8",  "start": time(15, 4),  "end": time(15, 45)},
+    ],
+
+    datetime(2017, 7, 7).date(): [
+        {"type": "Botnet", "src": "205.174.165.73", "dst": "192.168.10.8",  "start": time(10, 2), "end": time(11, 2)},
+        {"type": "Infiltration",    "src": "205.174.165.73", "dst": "205.174.165.68", "start": time(13, 55), "end": time(15, 29)},
+        {"type": "DDoS",   "src": "205.174.165.69", "dst": "205.174.165.68", "start": time(15, 56), "end": time(16, 16)},
+        {"type": "DDoS",   "src": "205.174.165.70", "dst": "205.174.165.68", "start": time(15, 56), "end": time(16, 16)},
+        {"type": "DDoS",   "src": "205.174.165.71", "dst": "205.174.165.68", "start": time(15, 56), "end": time(16, 16)},
+    ]
+}
+
+nat_map = {
+    # Atacante principal (Kali)
+    "205.174.165.73": [
+        "192.168.10.8",     # Windows Vista
+        "192.168.10.25",    # MAC
+        "192.168.10.50",    # WebServer Ubuntu
+        "192.168.10.51"     # Ubuntu12 (Heartbleed)
+    ],
+
+    # Vítimas internas mapeadas para o IP público 205.174.165.73 (respostas)
+    "192.168.10.8": ["205.174.165.73"],
+    "192.168.10.25": ["205.174.165.73"],
+    "192.168.10.50": ["205.174.165.73"],
+    "192.168.10.51": ["205.174.165.73"],
+
+    # WebServer Ubuntu com IP público da firewall (NAT)
+    "205.174.165.80": [
+        "192.168.10.50",    # WebServer Ubuntu
+        "192.168.10.51"     # Ubuntu12
+    ],
+    "192.168.10.50": ["205.174.165.80"],
+    "192.168.10.51": ["205.174.165.80"],
+
+    # IPs públicos das máquinas da botnet (LOIT)
+    "205.174.165.69": ["192.168.10.50"],
+    "205.174.165.70": ["192.168.10.50"],
+    "205.174.165.71": ["192.168.10.50"],
+
+    # Relacionamentos anteriores já registrados
+    "205.174.165.66": ["192.168.10.5"],
+    "192.168.10.5": ["205.174.165.66"],
+}
+
+
+
+def infer_threat(pkt_time, ip_src, ip_dst):
+    tz = ZoneInfo('America/Halifax')  
+    dt = datetime.fromtimestamp(float(pkt_time), tz=tz)
+    current_date = dt.date()
+    current_time = dt.time()
+
+    attacks_today = attack_schedule.get(current_date, [])
+
+    def ip_match(ip_a, ip_b):
+        return ip_a == ip_b or ip_b in nat_map.get(ip_a, []) or ip_a in nat_map.get(ip_b, [])
+
+    for attack in attacks_today:
+        src_match = ip_match(ip_src, attack["src"]) and ip_match(ip_dst, attack["dst"])
+        dst_match = ip_match(ip_dst, attack["src"]) and ip_match(ip_src, attack["dst"])
+
+        if (src_match or dst_match) and (attack["start"] <= current_time <= attack["end"]):
+            return f"Malicious/{attack['type']}"
+
+    return "Benign/None"
+
+
+
 def process_pcap_to_csv(pcap_path, output_dir):
+    # print(pcap_path)
     packets = rdpcap(pcap_path)
 
     flows = {} 
@@ -73,17 +164,26 @@ def process_pcap_to_csv(pcap_path, output_dir):
 
     os.makedirs(output_dir, exist_ok=True)
 
-    new_flow_id = sum(1 for f in Path(output_dir).iterdir() if f.is_file())
-
     # i = len list files from folder
     for i, (key, pkts) in enumerate(flows.items()):
-        if i == 0:
-            i = i + new_flow_id
+        
         ip_src, sport, ip_dst, dport, proto = key
-        flow_id = f"flow_{i}"
+        
         start_time = pkts[0].time
+        
         times = [round(pkt.time - start_time, 6) for pkt in pkts]
         sizes = [len(pkt) for pkt in pkts]
+
+        # Inferir ameaça com base no primeiro pacote
+        threat = infer_threat(start_time, ip_src, ip_dst)
+        threat_dir = os.path.join(output_dir, threat)
+        os.makedirs(threat_dir, exist_ok=True)
+
+        if i == 0:
+            new_flow_id = sum(1 for f in Path(threat_dir).iterdir() if f.is_file())
+            i = i + new_flow_id
+
+        flow_id = f"flow_{i}"
 
         row = [
             flow_id,
@@ -97,7 +197,7 @@ def process_pcap_to_csv(pcap_path, output_dir):
             0.0  # tempo inicial
         ] + times[1:] + [''] + sizes
 
-        csv_name = os.path.join(output_dir, f"{flow_id}.csv")
+        csv_name = os.path.join(threat_dir, f"{flow_id}.csv")
         with open(csv_name, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(row)
@@ -110,7 +210,6 @@ def get_vpn_class(pcap_name: str) -> str:
     traffic_label = next((label for label, keywords in traffic.items() if any(k in name for k in keywords)), 'Browsing')
 
     return f"{traffic_label}_{crypto_label}" if crypto_label else traffic_label
-
 
 crypto = {
     'VPN': ['vpn'],
@@ -126,7 +225,7 @@ traffic = {
     'Browsing': ['browsing']
 }
 
-root_path = Path('Dataset_raw/')
+root_path = Path('Dataset_raw/CIC-IDS-2017/')
 save_database = Path('Classes_csv/')
 done_csv_name = Path('./internet_traffic/files_done.csv')
 
@@ -190,12 +289,12 @@ with Live(progress, refresh_per_second=2):
             
             progress.update(task, advance=1)
         else:
-            category, threat = (str(file).split('\\')[2], str(file).split('\\')[3])
-            pcap_class = f"{category.title()}/{threat.title()}"
+            # category, threat = (str(file).split('\\')[2], str(file).split('\\')[3])
+            # pcap_class = f"{category.title()}/{threat.title()}"
 
             # pcap_class = get_vpn_class(pcap_name)
-
-            process_pcap_to_csv(str(file), str(save_database.joinpath(pcap_class)))
+            
+            process_pcap_to_csv(str(file), str(save_database))
 
             files_done.loc[len(files_done)] = [len(files_done), str(file)]
             files_done.to_csv(done_csv_name.__str__(), index=False)

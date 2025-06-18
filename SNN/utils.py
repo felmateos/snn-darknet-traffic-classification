@@ -389,12 +389,11 @@ def plot_loss_acc_epoch_charts(User_params, checkpoint) :
         Epoch_valid_accuracy_list = []
         Train_loss_list = []
 
-    if User_params['Project'] == "VPN" :
-        try :
-            Epoch_average_precision_list = checkpoint['Epoch_average_precision_list']
-            Epoch_average_precision_list.insert(0, 0.1)
-        except :
-            Epoch_average_precision_list = []
+    try :
+        Epoch_average_precision_list = checkpoint['Epoch_average_precision_list']
+        Epoch_average_precision_list.insert(0, 0.1)
+    except :
+        Epoch_average_precision_list = []
 
     loss_epochs = np.arange(len(Epoch_loss_list))
     acc_epochs = np.arange(len(Epoch_valid_accuracy_list))
