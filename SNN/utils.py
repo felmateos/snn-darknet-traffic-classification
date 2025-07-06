@@ -164,6 +164,7 @@ def plot_membrane(ax, mem_data, title=None):
 
 
 def plot_model_behaviour_grid_columns(model, User_params, dataloader, label_dct, device, dtype):
+    print('plot model')
     X_batch, y_batch = next(iter(dataloader))
     X_batch = X_batch.to(device, dtype)
     y_batch = y_batch.to(device)
@@ -178,6 +179,10 @@ def plot_model_behaviour_grid_columns(model, User_params, dataloader, label_dct,
             if int(y.item()) == id_class:
                 batch_idx.append(idx)
                 break
+    
+    print("Amostras selecionadas e seus arquivos correspondentes:")
+    for idx in batch_idx:
+        print(f"Classe: {int(y_batch[idx].item())}, idx: {idx}")
 
     model(X_batch)
 

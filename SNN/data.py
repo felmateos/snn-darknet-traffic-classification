@@ -310,6 +310,8 @@ class TrafficClassificationDataset(Dataset):
             # writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
             # writer.writerow([label, Size_mean, Size_slope_mean])
 
+        print(filename)
+
 
 
 

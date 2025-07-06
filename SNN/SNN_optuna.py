@@ -30,7 +30,7 @@ warnings.simplefilter("ignore", category=UserWarning)
 #=======================================================================================
 
 # PARAMS
-with open("best_params.yaml", "r") as file:
+with open("best_config.yaml", "r") as file:
     params = yaml.safe_load(file)
 
 User_params = from_dict(data_class=UserParams, data=params)
